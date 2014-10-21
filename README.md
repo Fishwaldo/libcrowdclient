@@ -1,5 +1,4 @@
-LibCrowdClient - A C++ Library to interface with Atlassian Crowd 
-================================================================
+# LibCrowdClient - A C++ Library to interface with Atlassian Crowd 
 
 This is a pure C++ library that interfaces with Atlassian Crowd for 
 Authentication and Authorization. You can use this library to 
