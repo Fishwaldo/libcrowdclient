@@ -113,6 +113,8 @@ int main(int argc, char **argv) {
 						std::cout << "\t\t" << it->second.at(i) << std::endl;
 					}
 				}
+			} else {
+				std::cout << "getPrincipleAttributes Error: Code: " << clnt->getErrorCode() << " Msg: " << clnt->getErrorMsg() << std::endl;
 			}
 		}
 		{
@@ -123,6 +125,8 @@ int main(int argc, char **argv) {
 				for (int i = 0; i < groupmembership.size(); i++) {
 					std::cout << "\t" << groupmembership.at(i) << std::endl;
 				}
+			} else {
+				std::cout << "getPrincipleAttributes Error: Code: " << clnt->getErrorCode() << " Msg: " << clnt->getErrorMsg() << std::endl;
 			}
 		}
 		{
@@ -143,8 +147,8 @@ int main(int argc, char **argv) {
 						std::cout << "\t\t" << it->second.at(i) << std::endl;
 					}
 				}
-			} else {
-				std::cout << "Couldn't Add Account: blah" << std::endl;
+			}  else {
+				std::cout << "getPrincipleAttributes Error: Code: " << clnt->getErrorCode() << " Msg: " << clnt->getErrorMsg() << std::endl;
 			}
 		}
 		{
@@ -153,6 +157,8 @@ int main(int argc, char **argv) {
 			vals.push_back("test2");
 			if (clnt->addPrincipleAttributes("blah", "blah", vals)) {
 				std::cout << "addPrincipleAttributes for blah" << std::endl;
+			} else {
+				std::cout << "getPrincipleAttributes Error: Code: " << clnt->getErrorCode() << " Msg: " << clnt->getErrorMsg() << std::endl;
 			}
 		}
 		{
@@ -161,26 +167,36 @@ int main(int argc, char **argv) {
 			vals.push_back("test4");
 			if (clnt->updatePrincipleAttributes("blah", "blah", vals)) {
 				std::cout << "updatePrincipleAttributes for blah" << std::endl;
+			} else {
+				std::cout << "getPrincipleAttributes Error: Code: " << clnt->getErrorCode() << " Msg: " << clnt->getErrorMsg() << std::endl;
 			}
 		}
 		{
 			if (clnt->removePrincipleAttributes("blah", "blah")) {
 				std::cout << "removePrincipleAttributes Deleted" << std::endl;
+			} else {
+				std::cout << "getPrincipleAttributes Error: Code: " << clnt->getErrorCode() << " Msg: " << clnt->getErrorMsg() << std::endl;
 			}
 		}
 		{
 			if (clnt->resetPrinciplePassword("blah", "haha")) {
 				std::cout << "resetPrinciplePassword for blah" << std::endl;
+			} else {
+				std::cout << "getPrincipleAttributes Error: Code: " << clnt->getErrorCode() << " Msg: " << clnt->getErrorMsg() << std::endl;
 			}
 		}
 		{
 			if (clnt->authPrinciple("blah", "haha", &token)) {
 				std::cout << "authPrinciple for blah: " << token << std::endl;
+			} else {
+				std::cout << "getPrincipleAttributes Error: Code: " << clnt->getErrorCode() << " Msg: " << clnt->getErrorMsg() << std::endl;
 			}
 		}
 		{
 			if (clnt->checkPrincipleToken(token)) {
 				std::cout << "checkPrincipleToken for blah" << std::endl;
+			} else {
+				std::cout << "getPrincipleAttributes Error: Code: " << clnt->getErrorCode() << " Msg: " << clnt->getErrorMsg() << std::endl;
 			}
 		}
 		{
@@ -200,18 +216,22 @@ int main(int argc, char **argv) {
 						std::cout << "\t\t" << it->second.at(i) << std::endl;
 					}
 				}
+			} else {
+				std::cout << "getPrincipleAttributes Error: Code: " << clnt->getErrorCode() << " Msg: " << clnt->getErrorMsg() << std::endl;
 			}
 		}
 		{
 			if (clnt->deauthPrinciple(token)) {
 				std::cout << "deauthPrinciple for blah" << std::endl;
+			} else {
+				std::cout << "getPrincipleAttributes Error: Code: " << clnt->getErrorCode() << " Msg: " << clnt->getErrorMsg() << std::endl;
 			}
 		}
 		{
 			if (clnt->checkPrincipleToken(token)) {
 				std::cout << "checkPrincipleToken for blah: Valid" << std::endl;
 			} else {
-				std::cout << "checkPrincipleToken for blah: Not Valid" << std::endl;
+				std::cout << "getPrincipleAttributes Error: Code: " << clnt->getErrorCode() << " Msg: " << clnt->getErrorMsg() << std::endl;
 			}
 		}
 		{
@@ -235,26 +255,30 @@ int main(int argc, char **argv) {
 				for (int i = 0; i < attributes.members.size(); i++) {
 					std::cout << "\t\t" << attributes.members.at(i) << std::endl;
 				}
-			} else {
-				std::cout << "No Group" << std::endl;
+			}  else {
+				std::cout << "getPrincipleAttributes Error: Code: " << clnt->getErrorCode() << " Msg: " << clnt->getErrorMsg() << std::endl;
 			}
 		}
-		if (clnt->isGroupMember("Group", "blah")) {
-			std::cout << "isGroupMember true" << std::endl;
-		} else {
-			std::cout << "isGroupMember false" << std::endl;
+		{
+			if (clnt->isGroupMember("Group", "blah")) {
+				std::cout << "isGroupMember true" << std::endl;
+			} else {
+				std::cout << "getPrincipleAttributes Error: Code: " << clnt->getErrorCode() << " Msg: " << clnt->getErrorMsg() << std::endl;
+			}
 		}
-
-		if (clnt->addGroupMember("Group", "blah")) {
-			std::cout << "addGroupMember Blah to Group" << std::endl;
-		} else {
-			std::cout << "addGroupMember in adding blah to group" << std::endl;
+		{
+			if (clnt->addGroupMember("Group", "blah")) {
+				std::cout << "addGroupMember Blah to Group" << std::endl;
+			} else {
+				std::cout << "getPrincipleAttributes Error: Code: " << clnt->getErrorCode() << " Msg: " << clnt->getErrorMsg() << std::endl;
+			}
 		}
-
-		if (clnt->isGroupMember("Group", "blah")) {
-			std::cout << "isGroupMember true" << std::endl;
-		} else {
-			std::cout << "isGroupMember false" << std::endl;
+		{
+			if (clnt->isGroupMember("Group", "blah")) {
+				std::cout << "isGroupMember true" << std::endl;
+			} else {
+				std::cout << "getPrincipleAttributes Error: Code: " << clnt->getErrorCode() << " Msg: " << clnt->getErrorMsg() << std::endl;
+			}
 		}
 		{
 			GroupDetails attributes;
@@ -277,11 +301,15 @@ int main(int argc, char **argv) {
 				for (int i = 0; i < attributes.members.size(); i++) {
 					std::cout << "\t\t" << attributes.members.at(i) << std::endl;
 				}
+			} else {
+				std::cout << "getPrincipleAttributes Error: Code: " << clnt->getErrorCode() << " Msg: " << clnt->getErrorMsg() << std::endl;
 			}
 		}
 		{
 			if (clnt->updateGroup("Group", "TestNewGroup", false)) {
 				std::cout << "Update Group" << std::endl;
+			} else {
+				std::cout << "getPrincipleAttributes Error: Code: " << clnt->getErrorCode() << " Msg: " << clnt->getErrorMsg() << std::endl;
 			}
 		}
 		{
@@ -305,8 +333,8 @@ int main(int argc, char **argv) {
 				for (int i = 0; i < attributes.members.size(); i++) {
 					std::cout << "\t\t" << attributes.members.at(i) << std::endl;
 				}
-			} else {
-				std::cout << "No Group" << std::endl;
+			}  else {
+				std::cout << "getPrincipleAttributes Error: Code: " << clnt->getErrorCode() << " Msg: " << clnt->getErrorMsg() << std::endl;
 			}
 
 		}
@@ -316,6 +344,8 @@ int main(int argc, char **argv) {
 			vals.push_back("test2");
 			if (clnt->addGroupAttributes("Group", "blah", vals)) {
 				std::cout << "addGroupAttributes" << std::endl;
+			} else {
+				std::cout << "getPrincipleAttributes Error: Code: " << clnt->getErrorCode() << " Msg: " << clnt->getErrorMsg() << std::endl;
 			}
 		}
 		{
@@ -324,6 +354,8 @@ int main(int argc, char **argv) {
 			vals.push_back("test4");
 			if (clnt->updateGroupAttributes("Group", "blah", vals)) {
 				std::cout << "updateGroupAttributes" << std::endl;
+			} else {
+				std::cout << "getPrincipleAttributes Error: Code: " << clnt->getErrorCode() << " Msg: " << clnt->getErrorMsg() << std::endl;
 			}
 		}
 		{
@@ -347,16 +379,22 @@ int main(int argc, char **argv) {
 				for (int i = 0; i < attributes.members.size(); i++) {
 					std::cout << "\t\t" << attributes.members.at(i) << std::endl;
 				}
+			} else {
+				std::cout << "getPrincipleAttributes Error: Code: " << clnt->getErrorCode() << " Msg: " << clnt->getErrorMsg() << std::endl;
 			}
 		}
 		{
 			if (clnt->removeGroupMember("Group", "blah")) {
 				std::cout << "removeGroupMember: blah from Group" << std::endl;
+			} else {
+				std::cout << "getPrincipleAttributes Error: Code: " << clnt->getErrorCode() << " Msg: " << clnt->getErrorMsg() << std::endl;
 			}
 		}
 		{
 			if (clnt->removeGroupAttributes("Group", "blah")) {
 				std::cout << "removeGroupAttributes: blah from Group" << std::endl;
+			} else {
+				std::cout << "getPrincipleAttributes Error: Code: " << clnt->getErrorCode() << " Msg: " << clnt->getErrorMsg() << std::endl;
 			}
 		}
 		{
@@ -366,6 +404,8 @@ int main(int argc, char **argv) {
 				for (int i = 0; i < groups.size(); i++) {
 					std::cout << "\t" << groups.at(i) << std::endl;
 				}
+			} else {
+				std::cout << "getPrincipleAttributes Error: Code: " << clnt->getErrorCode() << " Msg: " << clnt->getErrorMsg() << std::endl;
 			}
 		}
 		{
@@ -375,13 +415,23 @@ int main(int argc, char **argv) {
 				for (int i = 0 ; i < appgroups.size(); i++) {
 					std::cout << "\t" << appgroups.at(i) << std::endl;
 				}
+			} else {
+				std::cout << "getPrincipleAttributes Error: Code: " << clnt->getErrorCode() << " Msg: " << clnt->getErrorMsg() << std::endl;
 			}
 		}
-		if (clnt->removeGroup("Group")) {
-			std::cout << "Group Removed" << std::endl;
+		{
+			if (clnt->removeGroup("Group")) {
+				std::cout << "Group Removed" << std::endl;
+			} else {
+				std::cout << "getPrincipleAttributes Error: Code: " << clnt->getErrorCode() << " Msg: " << clnt->getErrorMsg() << std::endl;
+			}
 		}
-		if (clnt->removePrinciple("blah")) {
-			std::cout << "Removed Principle" << std::endl;
+		{
+			if (clnt->removePrinciple("blah")) {
+				std::cout << "Removed Principle" << std::endl;
+			} else {
+				std::cout << "getPrincipleAttributes Error: Code: " << clnt->getErrorCode() << " Msg: " << clnt->getErrorMsg() << std::endl;
+			}
 		}
 
 		delete clnt;
