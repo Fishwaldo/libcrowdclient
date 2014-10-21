@@ -438,6 +438,6 @@ int main(int argc, char **argv) {
 	} catch ( CrowdException &e) {
 		std::cout << "Exception Code:" << e.type() << " " << e.what() << std::endl;
 	} catch (...) {
-		std::cout << "Excpetion" << std::endl;
+		std::cout << "Unhandled Exception" << std::endl;
 	}
 }
