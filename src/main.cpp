@@ -62,6 +62,38 @@ int main(int argc, char **argv) {
 
 		CrowdClient *clnt = CrowdClient::Get();
 
+		{
+			std::vector<searchParams*> search;
+			searchParams *param1 = new searchParams();
+			param1->name = "mail";
+			param1->value = "fish@dynam.ac";
+			search.push_back(param1);
+			std::vector<PrincipleDetails *> results;
+			if (clnt->searchPrinciples(search, &results) == CROWD_OK) {
+				std::cout << "searchPrinciples Results for mail = fish@dynam.ac" << std::endl;
+				for (int i = 0; i < results.size(); i++) {
+					PrincipleDetails *attributes = results.at(i);
+					std::cout << "\tID: " << attributes->id << std::endl;
+					std::cout << "\tActive: " << (attributes->active ? "true" : "false") << std::endl;
+					std::cout << "\tName: " << attributes->name << std::endl;
+					std::cout << "\tConception: " << attributes->conception << std::endl;
+					std::cout << "\tLast Modified: " << attributes->lastModified << std::endl;
+					std::cout << "\tDescription: " << attributes->description << std::endl;
+					std::cout << "\tDirectoryID: " << attributes->directoryId << std::endl;
+					for (std::map<std::string, std::vector<std::string> >::iterator it = attributes->attributes.begin(); it != attributes->attributes.end(); it++) {
+						std::cout << "\t" << it->first <<":"<< std::endl;
+						for (int i = 0; i < it->second.size(); i++) {
+							std::cout << "\t\t" << it->second.at(i) << std::endl;
+						}
+					}
+				}
+			} else {
+				std::cout << "getAllPrinciples Error: Code: " << clnt->getErrorCode() << " Msg: " << clnt->getErrorMsg() << std::endl;
+			}
+		}
+
+
+
 		std::vector<std::string> allusers;
 		std::string token;
 
@@ -437,6 +469,8 @@ int main(int argc, char **argv) {
 		delete clnt;
 	} catch ( CrowdException &e) {
 		std::cout << "Exception Code:" << e.type() << " " << e.what() << std::endl;
+	} catch ( std::exception &e) {
+		std::cout << "Std::Exception: " << e.what() << std::endl;
 	} catch (...) {
 		std::cout << "Unhandled Exception" << std::endl;
 	}

@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.69])
-AC_INIT([libcrowdclient], [1.0], [http://jira.my-ho.st/jira/])
+AC_INIT([libcrowdclient], [1.1], [http://jira.my-ho.st/jira/])
 AC_CONFIG_AUX_DIR(autotools)
 AC_CONFIG_SRCDIR([src/main.cpp])
 AC_CONFIG_HEADER([include/config.h])

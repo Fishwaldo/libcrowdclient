@@ -59,6 +59,11 @@ struct GroupDetails {
 		std::vector<std::string> members;
 };
 
+struct searchParams {
+		std::string name;
+		std::string value;
+};
+
 enum CrowdClientReturnCodes {
 	CROWD_OK = 1,
 	CROWD_NAK = 0,
@@ -163,6 +168,7 @@ public:
 		CrowdClientReturnCodes removePrinciple(std::string username);
 
 		CrowdClientReturnCodes getAllPrinciples(std::vector<std::string> *users);
+		CrowdClientReturnCodes searchPrinciples(std::vector< searchParams * > search, std::vector<PrincipleDetails *> *results);
 
 		CrowdClientReturnCodes getAllGroups(std::vector<std::string> *groups);
 		CrowdClientReturnCodes getGroup(std::string group, GroupDetails *attributes);

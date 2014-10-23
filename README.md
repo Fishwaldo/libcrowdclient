@@ -10,7 +10,7 @@ authentication, and managing users and groups. Some of the
 features missing currently are:
 
 * Roles (depreciated in Crowd)
-* Searching for Users/Groups (Planned)
+* Searching for Groups (Planned)
 * Cacheing (Planned)
 * SSO based on Cookies/Headers (Planned)
 

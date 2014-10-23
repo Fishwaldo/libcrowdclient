@@ -1,24 +1,24 @@
 /* crowd-c++ - crowdclient.cpp
-** Copyright (c) 2014 Justin Hammond
-**
-**  This program is free software; you can redistribute it and/or modify
-**  it under the terms of the GNU General Public License as published by
-**  the Free Software Foundation; either version 2 of the License, or
-**  (at your option) any later version.
-**
-**  This program is distributed in the hope that it will be useful,
-**  but WITHOUT ANY WARRANTY; without even the implied warranty of
-**  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-**  GNU General Public License for more details.
-**
-**  You should have received a copy of the GNU General Public License
-**  along with this program; if not, write to the Free Software
-**  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307
-**  USA
-**
-** crowd-c++ SVN Identification:
-** $Rev$
-*/
+ ** Copyright (c) 2014 Justin Hammond
+ **
+ **  This program is free software; you can redistribute it and/or modify
+ **  it under the terms of the GNU General Public License as published by
+ **  the Free Software Foundation; either version 2 of the License, or
+ **  (at your option) any later version.
+ **
+ **  This program is distributed in the hope that it will be useful,
+ **  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ **  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ **  GNU General Public License for more details.
+ **
+ **  You should have received a copy of the GNU General Public License
+ **  along with this program; if not, write to the Free Software
+ **  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307
+ **  USA
+ **
+ ** crowd-c++ SVN Identification:
+ ** $Rev$
+ */
 
 /** @file crowdclient.cpp
  *  @brief
@@ -34,9 +34,9 @@
 template <typename T>
 std::string tostring(const T& t)
 {
-    std::ostringstream ss;
-    ss << t;
-    return ss.str();
+	std::ostringstream ss;
+	ss << t;
+	return ss.str();
 }
 
 
@@ -812,6 +812,59 @@ CrowdClientReturnCodes CrowdClient::resetPrinciplePassword(std::string user, std
 	}
 	delete principle.in2->encryptedCredential;
 	delete principle.in2;
+	if (ret == false)
+		return this->processFault();
+	else
+		return CROWD_OK;
+}
+
+CrowdClientReturnCodes CrowdClient::searchPrinciples(std::vector< searchParams * > search, std::vector<PrincipleDetails *> *results) {
+	if (!this->isReady())
+		return CROWD_ERR_NOT_READY;
+	bool ret = false;
+	_ns1__searchPrincipals searchPrinciple;
+	_ns1__searchPrincipalsResponse searchPrincipleResponse;
+	searchPrinciple.in0 = this->authToken;
+	searchPrinciple.in1 = new ns3__ArrayOfSearchRestriction();
+	for (int i = 0; i < search.size(); i++) {
+		ns3__SearchRestriction *param = new ns3__SearchRestriction();
+		param->name = &(search.at(i))->name;
+		param->value = &(search.at(i))->value;
+		searchPrinciple.in1->SearchRestriction.push_back(param);
+	}
+	if (this->service->searchPrincipals(this->url.c_str(), NULL, &searchPrinciple, &searchPrincipleResponse) == SOAP_OK) {
+		ret = true;
+		while (searchPrinciple.in1->SearchRestriction.size() > 0) {
+			delete searchPrinciple.in1->SearchRestriction.back();
+			searchPrinciple.in1->SearchRestriction.pop_back();
+		}
+		delete searchPrinciple.in1;
+		if (searchPrincipleResponse.out->SOAPPrincipal.size() == 0)
+			return CROWD_NAK;
+		for (int i = 0; i < searchPrincipleResponse.out->SOAPPrincipal.size(); i++) {
+			PrincipleDetails *attributes = new PrincipleDetails();
+			if (searchPrincipleResponse.out->SOAPPrincipal.at(i)->ID)
+				attributes->id = *searchPrincipleResponse.out->SOAPPrincipal.at(i)->ID;
+			attributes->active = *searchPrincipleResponse.out->SOAPPrincipal.at(i)->active;
+			if (searchPrincipleResponse.out->SOAPPrincipal.at(i)->conception)
+				attributes->conception = *searchPrincipleResponse.out->SOAPPrincipal.at(i)->conception;
+			if (searchPrincipleResponse.out->SOAPPrincipal.at(i)->description)
+				attributes->description = *searchPrincipleResponse.out->SOAPPrincipal.at(i)->description;
+			if (searchPrincipleResponse.out->SOAPPrincipal.at(i)->directoryId)
+				attributes->directoryId = *searchPrincipleResponse.out->SOAPPrincipal.at(i)->directoryId;
+			if (searchPrincipleResponse.out->SOAPPrincipal.at(i)->lastModified)
+				attributes->lastModified = *searchPrincipleResponse.out->SOAPPrincipal.at(i)->lastModified;
+			if (searchPrincipleResponse.out->SOAPPrincipal.at(i)->name)
+				attributes->name = *searchPrincipleResponse.out->SOAPPrincipal.at(i)->name;
+			for (int j = 0; j < searchPrincipleResponse.out->SOAPPrincipal.at(i)->attributes->SOAPAttribute.size(); j++) {
+				ns3__SOAPAttribute *attribs = searchPrincipleResponse.out->SOAPPrincipal.at(i)->attributes->SOAPAttribute.at(j);
+				for (int k = 0; k < attribs->values->string.size(); k++) {
+					attributes->attributes[*attribs->name].push_back(attribs->values->string.at(k));
+				}
+			}
+			results->push_back(attributes);
+		}
+	}
 	if (ret == false)
 		return this->processFault();
 	else
