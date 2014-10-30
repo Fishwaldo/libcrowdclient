@@ -63,16 +63,45 @@ int main(int argc, char **argv) {
 		CrowdClient *clnt = CrowdClient::Get();
 
 		{
+			std::vector<std::string> active;
+			active.push_back("true");
+			if (CrowdClient::Get()->updatePrincipleAttributes("blah1", "active", active) != CROWD_OK) {
+				std::cerr << CrowdClient::Get()->getErrorMsg();
+			}
+			PrincipleDetails attributes = boost::make_shared<PrincipleDetails_t>();
+			if (clnt->getPrincipleAttributes("fish", attributes)) {
+				std::cout << "getPrincipleAttributes for: " << "blah1" << std::endl;
+				std::cout << "\tID: " << attributes->id << std::endl;
+				std::cout << "\tActive: " << (attributes->active ? "true" : "false") << std::endl;
+				std::cout << "\tName: " << attributes->name << std::endl;
+				std::cout << "\tConception: " << attributes->conception << std::endl;
+				std::cout << "\tLast Modified: " << attributes->lastModified << std::endl;
+				std::cout << "\tDescription: " << attributes->description << std::endl;
+				std::cout << "\tDirectoryID: " << attributes->directoryId << std::endl;
+				for (std::map<std::string, std::vector<std::string> >::iterator it = attributes->attributes.begin(); it != attributes->attributes.end(); it++) {
+					std::cout << "\t" << it->first <<":"<< std::endl;
+					for (int i = 0; i < it->second.size(); i++) {
+						std::cout << "\t\t" << it->second.at(i) << std::endl;
+					}
+				}
+			} else {
+				std::cout << "getPrincipleAttributes Error: Code: " << clnt->getErrorCode() << " Msg: " << clnt->getErrorMsg() << std::endl;
+			}
+
+		}
+
+
+		{
 			std::vector<searchParams*> search;
 			searchParams *param1 = new searchParams();
 			param1->name = "mail";
-			param1->value = "fish@dynam.ac";
+			param1->value = "justin@dynam.ac";
 			search.push_back(param1);
-			std::vector<PrincipleDetails *> results;
+			std::vector<PrincipleDetails> results;
 			if (clnt->searchPrinciples(search, &results) == CROWD_OK) {
 				std::cout << "searchPrinciples Results for mail = fish@dynam.ac" << std::endl;
 				for (int i = 0; i < results.size(); i++) {
-					PrincipleDetails *attributes = results.at(i);
+					PrincipleDetails attributes = results.at(i);
 					std::cout << "\tID: " << attributes->id << std::endl;
 					std::cout << "\tActive: " << (attributes->active ? "true" : "false") << std::endl;
 					std::cout << "\tName: " << attributes->name << std::endl;
@@ -90,6 +119,7 @@ int main(int argc, char **argv) {
 			} else {
 				std::cout << "getAllPrinciples Error: Code: " << clnt->getErrorCode() << " Msg: " << clnt->getErrorMsg() << std::endl;
 			}
+			delete param1;
 		}
 
 
@@ -108,17 +138,17 @@ int main(int argc, char **argv) {
 			}
 		}
 		{
-			PrincipleDetails attributes;
-			if (clnt->getPrincipleAttributes(allusers.at(0), &attributes)) {
+			PrincipleDetails attributes = boost::make_shared<PrincipleDetails_t>();
+			if (clnt->getPrincipleAttributes(allusers.at(0), attributes)) {
 				std::cout << "getPrincipleAttributes for: " << allusers.at(0) << std::endl;
-				std::cout << "\tID: " << attributes.id << std::endl;
-				std::cout << "\tActive: " << (attributes.active ? "true" : "false") << std::endl;
-				std::cout << "\tName: " << attributes.name << std::endl;
-				std::cout << "\tConception: " << attributes.conception << std::endl;
-				std::cout << "\tLast Modified: " << attributes.lastModified << std::endl;
-				std::cout << "\tDescription: " << attributes.description << std::endl;
-				std::cout << "\tDirectoryID: " << attributes.directoryId << std::endl;
-				for (std::map<std::string, std::vector<std::string> >::iterator it = attributes.attributes.begin(); it != attributes.attributes.end(); it++) {
+				std::cout << "\tID: " << attributes->id << std::endl;
+				std::cout << "\tActive: " << (attributes->active ? "true" : "false") << std::endl;
+				std::cout << "\tName: " << attributes->name << std::endl;
+				std::cout << "\tConception: " << attributes->conception << std::endl;
+				std::cout << "\tLast Modified: " << attributes->lastModified << std::endl;
+				std::cout << "\tDescription: " << attributes->description << std::endl;
+				std::cout << "\tDirectoryID: " << attributes->directoryId << std::endl;
+				for (std::map<std::string, std::vector<std::string> >::iterator it = attributes->attributes.begin(); it != attributes->attributes.end(); it++) {
 					std::cout << "\t" << it->first <<":"<< std::endl;
 					for (int i = 0; i < it->second.size(); i++) {
 						std::cout << "\t\t" << it->second.at(i) << std::endl;
@@ -129,17 +159,17 @@ int main(int argc, char **argv) {
 			}
 		}
 		{
-			PrincipleDetails attributes;
-			if (clnt->getPrincipleByName(allusers.at(0), &attributes)) {
+			PrincipleDetails attributes = boost::make_shared<PrincipleDetails_t>();
+			if (clnt->getPrincipleByName(allusers.at(0), attributes) == CROWD_OK) {
 				std::cout << "getPrincipleByName for: " << allusers.at(0) << std::endl;
-				std::cout << "\tID: " << attributes.id << std::endl;
-				std::cout << "\tActive: " << (attributes.active ? "true" : "false") << std::endl;
-				std::cout << "\tName: " << attributes.name << std::endl;
-				std::cout << "\tConception: " << attributes.conception << std::endl;
-				std::cout << "\tLast Modified: " << attributes.lastModified << std::endl;
-				std::cout << "\tDescription: " << attributes.description << std::endl;
-				std::cout << "\tDirectoryID: " << attributes.directoryId << std::endl;
-				for (std::map<std::string, std::vector<std::string> >::iterator it = attributes.attributes.begin(); it != attributes.attributes.end(); it++) {
+				std::cout << "\tID: " << attributes->id << std::endl;
+				std::cout << "\tActive: " << (attributes->active ? "true" : "false") << std::endl;
+				std::cout << "\tName: " << attributes->name << std::endl;
+				std::cout << "\tConception: " << attributes->conception << std::endl;
+				std::cout << "\tLast Modified: " << attributes->lastModified << std::endl;
+				std::cout << "\tDescription: " << attributes->description << std::endl;
+				std::cout << "\tDirectoryID: " << attributes->directoryId << std::endl;
+				for (std::map<std::string, std::vector<std::string> >::iterator it = attributes->attributes.begin(); it != attributes->attributes.end(); it++) {
 					std::cout << "\t" << it->first <<":"<< std::endl;
 					for (int i = 0; i < it->second.size(); i++) {
 						std::cout << "\t\t" << it->second.at(i) << std::endl;
@@ -162,18 +192,18 @@ int main(int argc, char **argv) {
 			}
 		}
 		{
-			PrincipleDetails attributes;
+			PrincipleDetails attributes = boost::make_shared<PrincipleDetails_t>();
 			std::cout << "addPrinciple for blah" << std::endl;
-			if (clnt->addPrinciple("blah", "John", "Smith", "john@smith.com", "blah", &attributes)) {
+			if (clnt->addPrinciple("blah", "John", "Smith", "john@smith.com", "blah", attributes)) {
 				std::cout << "Attributes:" << std::endl;
-				std::cout << "\tID: " << attributes.id << std::endl;
-				std::cout << "\tActive: " << (attributes.active ? "true" : "false") << std::endl;
-				std::cout << "\tName: " << attributes.name << std::endl;
-				std::cout << "\tConception: " << attributes.conception << std::endl;
-				std::cout << "\tLast Modified: " << attributes.lastModified << std::endl;
-				std::cout << "\tDescription: " << attributes.description << std::endl;
-				std::cout << "\tDirectoryID: " << attributes.directoryId << std::endl;
-				for (std::map<std::string, std::vector<std::string> >::iterator it = attributes.attributes.begin(); it != attributes.attributes.end(); it++) {
+				std::cout << "\tID: " << attributes->id << std::endl;
+				std::cout << "\tActive: " << (attributes->active ? "true" : "false") << std::endl;
+				std::cout << "\tName: " << attributes->name << std::endl;
+				std::cout << "\tConception: " << attributes->conception << std::endl;
+				std::cout << "\tLast Modified: " << attributes->lastModified << std::endl;
+				std::cout << "\tDescription: " << attributes->description << std::endl;
+				std::cout << "\tDirectoryID: " << attributes->directoryId << std::endl;
+				for (std::map<std::string, std::vector<std::string> >::iterator it = attributes->attributes.begin(); it != attributes->attributes.end(); it++) {
 					std::cout << "\t" << it->first <<":"<< std::endl;
 					for (int i = 0; i < it->second.size(); i++) {
 						std::cout << "\t\t" << it->second.at(i) << std::endl;
@@ -232,17 +262,17 @@ int main(int argc, char **argv) {
 			}
 		}
 		{
-			PrincipleDetails attributes;
-			if (clnt->getPrincipleByToken(token, &attributes)) {
+			PrincipleDetails attributes = boost::make_shared<PrincipleDetails_t>();
+			if (clnt->getPrincipleByToken(token, attributes)) {
 				std::cout << "getPrincipleByToken for blah" << std::endl;
-				std::cout << "\tID: " << attributes.id << std::endl;
-				std::cout << "\tActive: " << (attributes.active ? "true" : "false") << std::endl;
-				std::cout << "\tName: " << attributes.name << std::endl;
-				std::cout << "\tConception: " << attributes.conception << std::endl;
-				std::cout << "\tLast Modified: " << attributes.lastModified << std::endl;
-				std::cout << "\tDescription: " << attributes.description << std::endl;
-				std::cout << "\tDirectoryID: " << attributes.directoryId << std::endl;
-				for (std::map<std::string, std::vector<std::string> >::iterator it = attributes.attributes.begin(); it != attributes.attributes.end(); it++) {
+				std::cout << "\tID: " << attributes->id << std::endl;
+				std::cout << "\tActive: " << (attributes->active ? "true" : "false") << std::endl;
+				std::cout << "\tName: " << attributes->name << std::endl;
+				std::cout << "\tConception: " << attributes->conception << std::endl;
+				std::cout << "\tLast Modified: " << attributes->lastModified << std::endl;
+				std::cout << "\tDescription: " << attributes->description << std::endl;
+				std::cout << "\tDirectoryID: " << attributes->directoryId << std::endl;
+				for (std::map<std::string, std::vector<std::string> >::iterator it = attributes->attributes.begin(); it != attributes->attributes.end(); it++) {
 					std::cout << "\t" << it->first <<":"<< std::endl;
 					for (int i = 0; i < it->second.size(); i++) {
 						std::cout << "\t\t" << it->second.at(i) << std::endl;
@@ -267,25 +297,25 @@ int main(int argc, char **argv) {
 			}
 		}
 		{
-			GroupDetails attributes;
-			if (clnt->addGroup("Group", "TestGroup", &attributes)) {
+			GroupDetails attributes = boost::make_shared<GroupDetails_t>();
+			if (clnt->addGroup("Group", "TestGroup", attributes)) {
 				std::cout << "Attributes:" << std::endl;
-				std::cout << "\tID: " << attributes.id << std::endl;
-				std::cout << "\tActive: " << (attributes.active ? "true" : "false") << std::endl;
-				std::cout << "\tName: " << attributes.name << std::endl;
-				std::cout << "\tConception: " << attributes.conception << std::endl;
-				std::cout << "\tLast Modified: " << attributes.lastModified << std::endl;
-				std::cout << "\tDescription: " << attributes.description << std::endl;
-				std::cout << "\tDirectoryID: " << attributes.directoryId << std::endl;
-				for (std::map<std::string, std::vector<std::string> >::iterator it = attributes.attributes.begin(); it != attributes.attributes.end(); it++) {
+				std::cout << "\tID: " << attributes->id << std::endl;
+				std::cout << "\tActive: " << (attributes->active ? "true" : "false") << std::endl;
+				std::cout << "\tName: " << attributes->name << std::endl;
+				std::cout << "\tConception: " << attributes->conception << std::endl;
+				std::cout << "\tLast Modified: " << attributes->lastModified << std::endl;
+				std::cout << "\tDescription: " << attributes->description << std::endl;
+				std::cout << "\tDirectoryID: " << attributes->directoryId << std::endl;
+				for (std::map<std::string, std::vector<std::string> >::iterator it = attributes->attributes.begin(); it != attributes->attributes.end(); it++) {
 					std::cout << "\t" << it->first <<":"<< std::endl;
 					for (int i = 0; i < it->second.size(); i++) {
 						std::cout << "\t\t" << it->second.at(i) << std::endl;
 					}
 				}
 				std::cout << "\tMembers:" << std::endl;
-				for (int i = 0; i < attributes.members.size(); i++) {
-					std::cout << "\t\t" << attributes.members.at(i) << std::endl;
+				for (int i = 0; i < attributes->members.size(); i++) {
+					std::cout << "\t\t" << attributes->members.at(i) << std::endl;
 				}
 			}  else {
 				std::cout << "getPrincipleAttributes Error: Code: " << clnt->getErrorCode() << " Msg: " << clnt->getErrorMsg() << std::endl;
@@ -313,25 +343,25 @@ int main(int argc, char **argv) {
 			}
 		}
 		{
-			GroupDetails attributes;
-			if (clnt->getGroup("Group", &attributes)) {
+			GroupDetails attributes = boost::make_shared<GroupDetails_t>();
+			if (clnt->getGroup("Group", attributes)) {
 				std::cout << "getGroup:" << std::endl;
-				std::cout << "\tID: " << attributes.id << std::endl;
-				std::cout << "\tActive: " << (attributes.active ? "true" : "false") << std::endl;
-				std::cout << "\tName: " << attributes.name << std::endl;
-				std::cout << "\tConception: " << attributes.conception << std::endl;
-				std::cout << "\tLast Modified: " << attributes.lastModified << std::endl;
-				std::cout << "\tDescription: " << attributes.description << std::endl;
-				std::cout << "\tDirectoryID: " << attributes.directoryId << std::endl;
-				for (std::map<std::string, std::vector<std::string> >::iterator it = attributes.attributes.begin(); it != attributes.attributes.end(); it++) {
+				std::cout << "\tID: " << attributes->id << std::endl;
+				std::cout << "\tActive: " << (attributes->active ? "true" : "false") << std::endl;
+				std::cout << "\tName: " << attributes->name << std::endl;
+				std::cout << "\tConception: " << attributes->conception << std::endl;
+				std::cout << "\tLast Modified: " << attributes->lastModified << std::endl;
+				std::cout << "\tDescription: " << attributes->description << std::endl;
+				std::cout << "\tDirectoryID: " << attributes->directoryId << std::endl;
+				for (std::map<std::string, std::vector<std::string> >::iterator it = attributes->attributes.begin(); it != attributes->attributes.end(); it++) {
 					std::cout << "\t" << it->first <<":"<< std::endl;
 					for (int i = 0; i < it->second.size(); i++) {
 						std::cout << "\t\t" << it->second.at(i) << std::endl;
 					}
 				}
 				std::cout << "\tMembers:" << std::endl;
-				for (int i = 0; i < attributes.members.size(); i++) {
-					std::cout << "\t\t" << attributes.members.at(i) << std::endl;
+				for (int i = 0; i < attributes->members.size(); i++) {
+					std::cout << "\t\t" << attributes->members.at(i) << std::endl;
 				}
 			} else {
 				std::cout << "getPrincipleAttributes Error: Code: " << clnt->getErrorCode() << " Msg: " << clnt->getErrorMsg() << std::endl;
@@ -345,25 +375,25 @@ int main(int argc, char **argv) {
 			}
 		}
 		{
-			GroupDetails attributes;
-			if (clnt->getGroupAttributes("Group", &attributes)) {
+			GroupDetails attributes = boost::make_shared<GroupDetails_t>();
+			if (clnt->getGroupAttributes("Group", attributes)) {
 				std::cout << "getGroupAttributes:" << std::endl;
-				std::cout << "\tID: " << attributes.id << std::endl;
-				std::cout << "\tActive: " << (attributes.active ? "true" : "false") << std::endl;
-				std::cout << "\tName: " << attributes.name << std::endl;
-				std::cout << "\tConception: " << attributes.conception << std::endl;
-				std::cout << "\tLast Modified: " << attributes.lastModified << std::endl;
-				std::cout << "\tDescription: " << attributes.description << std::endl;
-				std::cout << "\tDirectoryID: " << attributes.directoryId << std::endl;
-				for (std::map<std::string, std::vector<std::string> >::iterator it = attributes.attributes.begin(); it != attributes.attributes.end(); it++) {
+				std::cout << "\tID: " << attributes->id << std::endl;
+				std::cout << "\tActive: " << (attributes->active ? "true" : "false") << std::endl;
+				std::cout << "\tName: " << attributes->name << std::endl;
+				std::cout << "\tConception: " << attributes->conception << std::endl;
+				std::cout << "\tLast Modified: " << attributes->lastModified << std::endl;
+				std::cout << "\tDescription: " << attributes->description << std::endl;
+				std::cout << "\tDirectoryID: " << attributes->directoryId << std::endl;
+				for (std::map<std::string, std::vector<std::string> >::iterator it = attributes->attributes.begin(); it != attributes->attributes.end(); it++) {
 					std::cout << "\t" << it->first <<":"<< std::endl;
 					for (int i = 0; i < it->second.size(); i++) {
 						std::cout << "\t\t" << it->second.at(i) << std::endl;
 					}
 				}
 				std::cout << "\tMembers:" << std::endl;
-				for (int i = 0; i < attributes.members.size(); i++) {
-					std::cout << "\t\t" << attributes.members.at(i) << std::endl;
+				for (int i = 0; i < attributes->members.size(); i++) {
+					std::cout << "\t\t" << attributes->members.at(i) << std::endl;
 				}
 			}  else {
 				std::cout << "getPrincipleAttributes Error: Code: " << clnt->getErrorCode() << " Msg: " << clnt->getErrorMsg() << std::endl;
@@ -391,25 +421,25 @@ int main(int argc, char **argv) {
 			}
 		}
 		{
-			GroupDetails attributes;
-			if (clnt->getGroupAttributes("Group", &attributes)) {
+			GroupDetails attributes = boost::make_shared<GroupDetails_t>();
+			if (clnt->getGroupAttributes("Group", attributes)) {
 				std::cout << "getGroupAttributes for Group" << std::endl;
-				std::cout << "\tID: " << attributes.id << std::endl;
-				std::cout << "\tActive: " << (attributes.active ? "true" : "false") << std::endl;
-				std::cout << "\tName: " << attributes.name << std::endl;
-				std::cout << "\tConception: " << attributes.conception << std::endl;
-				std::cout << "\tLast Modified: " << attributes.lastModified << std::endl;
-				std::cout << "\tDescription: " << attributes.description << std::endl;
-				std::cout << "\tDirectoryID: " << attributes.directoryId << std::endl;
-				for (std::map<std::string, std::vector<std::string> >::iterator it = attributes.attributes.begin(); it != attributes.attributes.end(); it++) {
+				std::cout << "\tID: " << attributes->id << std::endl;
+				std::cout << "\tActive: " << (attributes->active ? "true" : "false") << std::endl;
+				std::cout << "\tName: " << attributes->name << std::endl;
+				std::cout << "\tConception: " << attributes->conception << std::endl;
+				std::cout << "\tLast Modified: " << attributes->lastModified << std::endl;
+				std::cout << "\tDescription: " << attributes->description << std::endl;
+				std::cout << "\tDirectoryID: " << attributes->directoryId << std::endl;
+				for (std::map<std::string, std::vector<std::string> >::iterator it = attributes->attributes.begin(); it != attributes->attributes.end(); it++) {
 					std::cout << "\t" << it->first <<":"<< std::endl;
 					for (int i = 0; i < it->second.size(); i++) {
 						std::cout << "\t\t" << it->second.at(i) << std::endl;
 					}
 				}
 				std::cout << "\tMembers:" << std::endl;
-				for (int i = 0; i < attributes.members.size(); i++) {
-					std::cout << "\t\t" << attributes.members.at(i) << std::endl;
+				for (int i = 0; i < attributes->members.size(); i++) {
+					std::cout << "\t\t" << attributes->members.at(i) << std::endl;
 				}
 			} else {
 				std::cout << "getPrincipleAttributes Error: Code: " << clnt->getErrorCode() << " Msg: " << clnt->getErrorMsg() << std::endl;

@@ -33,11 +33,15 @@
 #include <map>
 #include <vector>
 #include <stdint.h>
+#include <iostream>
+#include <boost/shared_ptr.hpp>
+#include <boost/make_shared.hpp>
 
 class ns2__AuthenticatedToken;
 class SecurityServerHttpBindingProxy;
 
-struct PrincipleDetails {
+class PrincipleDetails_t {
+	public:
 		int64_t id;
 		bool active;
 		time_t conception;	/* optional element of type xsd:dateTime */
@@ -47,7 +51,7 @@ struct PrincipleDetails {
 		std::string name;	/* optional element of type xsd:string */
 		std::map<std::string, std::vector<std::string> > attributes;
 };
-struct GroupDetails {
+struct GroupDetails_t {
 		int64_t id;
 		bool active;
 		time_t conception;	/* optional element of type xsd:dateTime */
@@ -63,6 +67,10 @@ struct searchParams {
 		std::string name;
 		std::string value;
 };
+
+typedef boost::shared_ptr<PrincipleDetails_t> PrincipleDetails;
+typedef boost::shared_ptr<GroupDetails_t> GroupDetails;
+
 
 enum CrowdClientReturnCodes {
 	CROWD_OK = 1,
@@ -83,6 +91,7 @@ enum CrowdClientReturnCodes {
 	CROWD_ERR_OBJECT_NOT_FOUND = -14,
 	CROWD_ERR_REMOTE_EXCEPTION = -15,
 	CROWD_ERR_NOT_READY = -16,
+	CROWD_ERR_INVALID_PARAM = -17,
 	CROWD_ERR_UNKNOWN = -254
 };
 
@@ -136,6 +145,8 @@ protected:
     CrowdClientReturnCodes code_;
 };
 
+class CrowdCache;
+
 
 class CrowdClient {
 public:
@@ -157,23 +168,23 @@ public:
 		CrowdClientReturnCodes checkPrincipleToken(std::string token);
 		CrowdClientReturnCodes resetPrinciplePassword(std::string user);
 		CrowdClientReturnCodes resetPrinciplePassword(std::string user, std::string password);
-		CrowdClientReturnCodes getPrincipleByToken(std::string token, PrincipleDetails *attributes);
-		CrowdClientReturnCodes getPrincipleAttributes(std::string username, PrincipleDetails *attributes);
+		CrowdClientReturnCodes getPrincipleByToken(std::string token, PrincipleDetails attributes);
+		CrowdClientReturnCodes getPrincipleAttributes(std::string username, PrincipleDetails attributes);
 		CrowdClientReturnCodes addPrincipleAttributes(std::string username, std::string attributename, std::vector<std::string> attributevals);
 		CrowdClientReturnCodes removePrincipleAttributes(std::string username, std::string attribute);
 		CrowdClientReturnCodes updatePrincipleAttributes(std::string username, std::string attributename, std::vector<std::string> attributevals);
-		CrowdClientReturnCodes getPrincipleByName(std::string username, PrincipleDetails *attributes);
+		CrowdClientReturnCodes getPrincipleByName(std::string username, PrincipleDetails attributes);
 		CrowdClientReturnCodes getPrincipleGroups(std::string username, std::vector<std::string> *groups);
-		CrowdClientReturnCodes addPrinciple(std::string username, std::string firstname, std::string lastname, std::string email, std::string password, PrincipleDetails *attributes);
+		CrowdClientReturnCodes addPrinciple(std::string username, std::string firstname, std::string lastname, std::string email, std::string password, PrincipleDetails attributes);
 		CrowdClientReturnCodes removePrinciple(std::string username);
 
 		CrowdClientReturnCodes getAllPrinciples(std::vector<std::string> *users);
-		CrowdClientReturnCodes searchPrinciples(std::vector< searchParams * > search, std::vector<PrincipleDetails *> *results);
+		CrowdClientReturnCodes searchPrinciples(std::vector< searchParams * > search, std::vector<PrincipleDetails> *results);
 
 		CrowdClientReturnCodes getAllGroups(std::vector<std::string> *groups);
-		CrowdClientReturnCodes getGroup(std::string group, GroupDetails *attributes);
-		CrowdClientReturnCodes getGroupAttributes(std::string group, GroupDetails *attributes);
-		CrowdClientReturnCodes addGroup(std::string name, std::string description, GroupDetails *attributes);
+		CrowdClientReturnCodes getGroup(std::string group, GroupDetails attributes);
+		CrowdClientReturnCodes getGroupAttributes(std::string group, GroupDetails attributes);
+		CrowdClientReturnCodes addGroup(std::string name, std::string description, GroupDetails attributes);
 		CrowdClientReturnCodes updateGroup(std::string name, std::string description, bool active);
 		CrowdClientReturnCodes removeGroup(std::string name);
 		CrowdClientReturnCodes addGroupMember(std::string groupname, std::string principle);
@@ -200,6 +211,7 @@ private:
 		std::string password;
 		static CrowdClientReturnCodes errorcode;
 		static bool throwenabled;
+		CrowdCache *cache;
 };
 
 
