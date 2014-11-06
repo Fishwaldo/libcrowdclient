@@ -33,6 +33,29 @@ CrowdCache::CrowdCache() :
 timeout(0)
 {
 
+	this->stats.PrincipleCacheHits = 0;
+	this->stats.PrincipleCacheMisses = 0;
+	this->stats.PrincipleSize = 0;
+	this->stats.TokenMapHits = 0;
+	this->stats.TokenMapMisses = 0;
+	this->stats.TokenMapSize = 0;
+	this->stats.IsGroupMemberHits = 0;
+	this->stats.IsGroupMemberMisses = 0;
+	this->stats.IsGroupMemberSize = 0;
+	this->stats.PrincipleGroupsHits = 0;
+	this->stats.PrincipleGroupsMisses = 0;
+	this->stats.PrincipleGroupsSize = 0;
+	this->stats.AllGroupsHits = 0;
+	this->stats.AllGroupsMisses = 0;
+	this->stats.ApplicationGroupsHits = 0;
+	this->stats.ApplicationGroupsMisses = 0;
+	this->stats.GroupHits = 0;
+	this->stats.GroupMisses = 0;
+	this->stats.GroupSize = 0;
+	this->stats.AllUsersHits = 0;
+	this->stats.AllUsersMisses = 0;
+
+
 }
 CrowdCache::~CrowdCache() {
 
@@ -403,4 +426,12 @@ void CrowdCache::invalidateAllUsersCache() {
 	this->AllUsersCache.groups.clear();
 }
 
+const CrowdCacheStatistics_t CrowdCache::getStats() {
+	this->stats.PrincipleSize = this->PrincipleCache.size();
+	this->stats.TokenMapSize = this->TokenMap.size();
+	this->stats.IsGroupMemberSize = this->IsGroupMemberCache.size();
+	this->stats.PrincipleGroupsSize = this->PrincipleGroupsCache.size();
+	this->stats.GroupSize = this->GroupCache.size();
+	return this->stats;
+}
 

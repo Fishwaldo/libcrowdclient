@@ -64,7 +64,7 @@ bool CrowdClient::isReady() {
 	return CrowdClient::ready;
 }
 
-CrowdClient::CrowdClient() : authToken(NULL), url(""), appname(""), password("")
+CrowdClient::CrowdClient() : authToken(NULL), url(""), appname(""), password(""), authattempts(3)
 {
 	this->cache = new CrowdCache();
 	this->cache->setTimeout(600);
@@ -105,7 +105,10 @@ std::string CrowdClient::getErrorMsg() {
 
 CrowdClientReturnCodes CrowdClient::processFault() {
 	CrowdException *exception;
-
+	if (!this->service->soap_fault()) {
+		return CROWD_ERR_UNKNOWN;
+	}
+	std::cout << this->service->soap_fault()->faultcode << std::endl;
 	if (this->service->soap_fault()->detail->ns1__ApplicationAccessDeniedException) {
 		if (this->throwenabled) throw CrowdException(CROWD_ERR_APPLICATION_ACCESS_DENIED, this->service->soap_fault_string());
 		this->errorcode = CROWD_ERR_APPLICATION_ACCESS_DENIED;
@@ -202,12 +205,22 @@ CrowdClientReturnCodes CrowdClient::authPrinciple(std::string username, std::str
 	auth.in0 = this->authToken;
 	auth.in1 = &username;
 	auth.in2 = &password;
-	if (this->service->authenticatePrincipalSimple(this->url.c_str(), NULL, &auth, &authResponse) == SOAP_OK) {
-		token->assign(authResponse.out->c_str());
-		this->cache->invalidatePrincipleTokenCache(authResponse.out->c_str());
-		return CROWD_OK;
-	} else {
-		return this->processFault();
+	int attempts = 0;
+	while (true) {
+		int ret = this->service->authenticatePrincipalSimple(this->url.c_str(), NULL, &auth, &authResponse);
+		if ( ret == SOAP_OK) {
+			token->assign(authResponse.out->c_str());
+			this->cache->invalidatePrincipleTokenCache(authResponse.out->c_str());
+			return CROWD_OK;
+		} else if ((this->service->soap_fault()->detail->ns1__InvalidAuthorizationTokenException) && (attempts < this->authattempts)) {
+			attempts++;
+			if (this->authApplication() != CROWD_OK) {
+				return this->processFault();
+			}
+			auth.in0 = this->authToken;
+		} else {
+			return this->processFault();
+		}
 	}
 }
 
@@ -220,11 +233,21 @@ CrowdClientReturnCodes CrowdClient::deauthPrinciple(std::string token) {
 	_ns1__invalidatePrincipalTokenResponse TokenResponse;
 	Token.in0 = this->authToken;
 	Token.in1 = &token;
-	if (this->service->invalidatePrincipalToken(this->url.c_str(), NULL, &Token, &TokenResponse) == SOAP_OK) {
-		this->cache->invalidatePrincipleTokenCache(token);
-		return CROWD_OK;
-	} else {
-		return this->processFault();
+	int attempts = 0;
+	while (true) {
+		int ret = this->service->invalidatePrincipalToken(this->url.c_str(), NULL, &Token, &TokenResponse);
+		if ( ret == SOAP_OK) {
+			this->cache->invalidatePrincipleTokenCache(token);
+			return CROWD_OK;
+		} else if ((this->service->soap_fault()->detail->ns1__InvalidAuthorizationTokenException) && (attempts < this->authattempts)) {
+			attempts++;
+			if (this->authApplication() != CROWD_OK) {
+				return this->processFault();
+			}
+			Token.in0 = this->authToken;
+		} else {
+			return this->processFault();
+		}
 	}
 }
 CrowdClientReturnCodes CrowdClient::checkPrincipleToken(std::string token) {
@@ -234,11 +257,22 @@ CrowdClientReturnCodes CrowdClient::checkPrincipleToken(std::string token) {
 	_ns1__isValidPrincipalTokenResponse TokenResponse;
 	Token.in0 = this->authToken;
 	Token.in1 = &token;
-	if (this->service->isValidPrincipalToken(this->url.c_str(), NULL, &Token, &TokenResponse) == SOAP_OK) {
-		if (TokenResponse.out == false) this->cache->invalidatePrincipleTokenCache(token);
-		return TokenResponse.out ? CROWD_OK : CROWD_NAK;
+	int attempts = 0;
+	while (true) {
+		int ret = this->service->isValidPrincipalToken(this->url.c_str(), NULL, &Token, &TokenResponse);
+		if (ret == SOAP_OK) {
+			if (TokenResponse.out == false) this->cache->invalidatePrincipleTokenCache(token);
+			return TokenResponse.out ? CROWD_OK : CROWD_NAK;
+		} else if ((this->service->soap_fault()->detail->ns1__InvalidAuthorizationTokenException) && (attempts < this->authattempts)) {
+			attempts++;
+			if (this->authApplication() != CROWD_OK) {
+				return this->processFault();
+			}
+			Token.in0 = this->authToken;
+		} else {
+			return this->processFault();
+		}
 	}
-	return this->processFault();
 }
 CrowdClientReturnCodes CrowdClient::isGroupMember(std::string group, std::string user) {
 	if (!this->isReady())
@@ -253,11 +287,22 @@ CrowdClientReturnCodes CrowdClient::isGroupMember(std::string group, std::string
 	GroupMember.in0 = this->authToken;
 	GroupMember.in1 = &group;
 	GroupMember.in2 = &user;
-	if (this->service->isGroupMember(this->url.c_str(), NULL, &GroupMember, &GroupMemberResponse) == SOAP_OK) {
-		this->cache->setIsGroupMemberCache(group, user, GroupMemberResponse.out);
-		return GroupMemberResponse.out ? CROWD_OK : CROWD_NAK;
+	int attempts = 0;
+	while (true) {
+		int ret = this->service->isGroupMember(this->url.c_str(), NULL, &GroupMember, &GroupMemberResponse);
+		if (ret == SOAP_OK) {
+			this->cache->setIsGroupMemberCache(group, user, GroupMemberResponse.out);
+			return GroupMemberResponse.out ? CROWD_OK : CROWD_NAK;
+		} else if ((this->service->soap_fault()->detail->ns1__InvalidAuthorizationTokenException) && (attempts < this->authattempts)) {
+			attempts++;
+			if (this->authApplication() != CROWD_OK) {
+				return this->processFault();
+			}
+			GroupMember.in0 = this->authToken;
+		} else {
+			return this->processFault();
+		}
 	}
-	return this->processFault();
 }
 
 CrowdClientReturnCodes CrowdClient::resetPrinciplePassword(std::string user) {
@@ -267,20 +312,29 @@ CrowdClientReturnCodes CrowdClient::resetPrinciplePassword(std::string user) {
 	_ns1__resetPrincipalCredentialResponse resetResponse;
 	reset.in0 = this->authToken;
 	reset.in1 = &user;
-	if (this->service->resetPrincipalCredential(this->url.c_str(), NULL, &reset, &resetResponse) == SOAP_OK) {
-		this->cache->invalidatePrincipleCache(user);
-		return CROWD_OK;
-	} else {
-		return this->processFault();
+	int attempts = 0;
+	while (true) {
+		int ret = this->service->resetPrincipalCredential(this->url.c_str(), NULL, &reset, &resetResponse);
+		if (ret == SOAP_OK) {
+			this->cache->invalidatePrincipleCache(user);
+			return CROWD_OK;
+		} else if ((this->service->soap_fault()->detail->ns1__InvalidAuthorizationTokenException) && (attempts < this->authattempts)) {
+			attempts++;
+			if (this->authApplication() != CROWD_OK) {
+				return this->processFault();
+			}
+			reset.in0 = this->authToken;
+		} else {
+			return this->processFault();
+		}
 	}
 }
 CrowdClientReturnCodes CrowdClient::getPrincipleByToken(std::string token, PrincipleDetails attributes) {
 	if (attributes.use_count() <= 0) {
-		attributes.reset(new PrincipleDetails_t());
+		return CROWD_ERR_INVALID_PARAM;
 	}
 
 	if(this->cache->getPrincipleTokenCache(token, attributes, false) == CROWD_OK) {
-		std::cout << "done " << attributes->name << std::endl;
 		return CROWD_OK;
 	}
 
@@ -291,41 +345,51 @@ CrowdClientReturnCodes CrowdClient::getPrincipleByToken(std::string token, Princ
 	_ns1__findPrincipalByTokenResponse principleResponse;
 	principle.in0 = this->authToken;
 	principle.in1 = &token;
-	if (this->service->findPrincipalByToken(this->url.c_str(), NULL, &principle, &principleResponse) == SOAP_OK) {
-		if (principleResponse.out->ID)
-			attributes->id = *principleResponse.out->ID;
-		attributes->active = *principleResponse.out->active;
-		if (principleResponse.out->conception)
-			attributes->conception = *principleResponse.out->conception;
-		if (principleResponse.out->description)
-			attributes->description = *principleResponse.out->description;
-		if (principleResponse.out->directoryId)
-			attributes->directoryId = *principleResponse.out->directoryId;
-		if (principleResponse.out->lastModified)
-			attributes->lastModified = *principleResponse.out->lastModified;
-		if (principleResponse.out->name)
-			attributes->name = *principleResponse.out->name;
-		for (int i = 0; i < principleResponse.out->attributes->SOAPAttribute.size(); i++) {
-			ns3__SOAPAttribute *attribs = principleResponse.out->attributes->SOAPAttribute.at(i);
-			for (int k = 0; k < attribs->values->string.size(); k++) {
-				attributes->attributes[*attribs->name].push_back(attribs->values->string.at(k));
+	int attempts = 0;
+	while (true) {
+		int ret = this->service->findPrincipalByToken(this->url.c_str(), NULL, &principle, &principleResponse);
+		if (ret== SOAP_OK) {
+			if (principleResponse.out->ID)
+				attributes->id = *principleResponse.out->ID;
+			attributes->active = *principleResponse.out->active;
+			if (principleResponse.out->conception)
+				attributes->conception = *principleResponse.out->conception;
+			if (principleResponse.out->description)
+				attributes->description = *principleResponse.out->description;
+			if (principleResponse.out->directoryId)
+				attributes->directoryId = *principleResponse.out->directoryId;
+			if (principleResponse.out->lastModified)
+				attributes->lastModified = *principleResponse.out->lastModified;
+			if (principleResponse.out->name)
+				attributes->name = *principleResponse.out->name;
+			for (int i = 0; i < principleResponse.out->attributes->SOAPAttribute.size(); i++) {
+				ns3__SOAPAttribute *attribs = principleResponse.out->attributes->SOAPAttribute.at(i);
+				for (int k = 0; k < attribs->values->string.size(); k++) {
+					attributes->attributes[*attribs->name].push_back(attribs->values->string.at(k));
+				}
 			}
+			this->cache->setPrincipleTokenCache(token, attributes, false);
+			return CROWD_OK;
+		} else if ((this->service->soap_fault()->detail->ns1__InvalidAuthorizationTokenException) && (attempts < this->authattempts)) {
+			attempts++;
+			if (this->authApplication() != CROWD_OK) {
+				return this->processFault();
+			}
+			principle.in0 = this->authToken;
+		} else {
+			return this->processFault();
 		}
-		this->cache->setPrincipleTokenCache(token, attributes, false);
-		return CROWD_OK;
 	}
-	return this->processFault();
 }
 
 CrowdClientReturnCodes CrowdClient::getPrincipleAttributes(std::string username, PrincipleDetails attributes) {
 	if (attributes.use_count() <= 0) {
-		attributes.reset(new PrincipleDetails_t());
+		return CROWD_ERR_INVALID_PARAM;
 	}
 	if (!this->isReady())
 		return CROWD_ERR_NOT_READY;
 
 	if(this->cache->getPrincipleCache(username, attributes, false) == CROWD_OK) {
-		std::cout << "done " << attributes->name << std::endl;
 		return CROWD_OK;
 	}
 
@@ -333,7 +397,9 @@ CrowdClientReturnCodes CrowdClient::getPrincipleAttributes(std::string username,
 	_ns1__findPrincipalWithAttributesByNameResponse principleResponse;
 	principle.in0 = this->authToken;
 	principle.in1 = &username;
-	if (this->service->findPrincipalWithAttributesByName(this->url.c_str(), NULL, &principle, &principleResponse) == SOAP_OK) {
+	int attempts = 0;
+	int ret = this->service->findPrincipalWithAttributesByName(this->url.c_str(), NULL, &principle, &principleResponse);
+	if ( ret == SOAP_OK) {
 		if (principleResponse.out->ID)
 			attributes->id = *principleResponse.out->ID;
 		attributes->active = *principleResponse.out->active;
@@ -355,13 +421,20 @@ CrowdClientReturnCodes CrowdClient::getPrincipleAttributes(std::string username,
 		}
 		this->cache->setPrincipleCache(username, attributes, true);
 		return CROWD_OK;
+	} else if ((this->service->soap_fault()->detail->ns1__InvalidAuthorizationTokenException) && (attempts < this->authattempts)) {
+		attempts++;
+		if (this->authApplication() != CROWD_OK) {
+			return this->processFault();
+		}
+		principle.in0 = this->authToken;
+	} else {
+		return this->processFault();
 	}
-	return this->processFault();
 }
 
 CrowdClientReturnCodes CrowdClient::getPrincipleByName(std::string username, PrincipleDetails attributes) {
 	if (attributes.use_count() <= 0) {
-		attributes.reset(new PrincipleDetails_t());
+		return CROWD_ERR_INVALID_PARAM;
 	}
 	if (!this->isReady())
 		return CROWD_ERR_NOT_READY;
@@ -374,31 +447,41 @@ CrowdClientReturnCodes CrowdClient::getPrincipleByName(std::string username, Pri
 	_ns1__findPrincipalByNameResponse principleResponse;
 	principle.in0 = this->authToken;
 	principle.in1 = &username;
-	if (this->service->findPrincipalByName(this->url.c_str(), NULL, &principle, &principleResponse) == SOAP_OK) {
-		if (principleResponse.out->ID)
-			attributes->id = *principleResponse.out->ID;
-		attributes->active = *principleResponse.out->active;
-		if (principleResponse.out->conception)
-			attributes->conception = *principleResponse.out->conception;
-		if (principleResponse.out->description)
-			attributes->description = *principleResponse.out->description;
-		if (principleResponse.out->directoryId)
-			attributes->directoryId = *principleResponse.out->directoryId;
-		if (principleResponse.out->lastModified)
-			attributes->lastModified = *principleResponse.out->lastModified;
-		if (principleResponse.out->name)
-			attributes->name = *principleResponse.out->name;
-		for (int i = 0; i < principleResponse.out->attributes->SOAPAttribute.size(); i++) {
-			ns3__SOAPAttribute *attribs = principleResponse.out->attributes->SOAPAttribute.at(i);
-			for (int k = 0; k < attribs->values->string.size(); k++) {
-				attributes->attributes[*attribs->name].push_back(attribs->values->string.at(k));
+	int attempts = 0;
+	while (true) {
+		int ret = this->service->findPrincipalByName(this->url.c_str(), NULL, &principle, &principleResponse);
+		if ( ret == SOAP_OK) {
+			if (principleResponse.out->ID)
+				attributes->id = *principleResponse.out->ID;
+			attributes->active = *principleResponse.out->active;
+			if (principleResponse.out->conception)
+				attributes->conception = *principleResponse.out->conception;
+			if (principleResponse.out->description)
+				attributes->description = *principleResponse.out->description;
+			if (principleResponse.out->directoryId)
+				attributes->directoryId = *principleResponse.out->directoryId;
+			if (principleResponse.out->lastModified)
+				attributes->lastModified = *principleResponse.out->lastModified;
+			if (principleResponse.out->name)
+				attributes->name = *principleResponse.out->name;
+			for (int i = 0; i < principleResponse.out->attributes->SOAPAttribute.size(); i++) {
+				ns3__SOAPAttribute *attribs = principleResponse.out->attributes->SOAPAttribute.at(i);
+				for (int k = 0; k < attribs->values->string.size(); k++) {
+					attributes->attributes[*attribs->name].push_back(attribs->values->string.at(k));
+				}
 			}
+			this->cache->setPrincipleCache(username, attributes, true);
+			return CROWD_OK;
+		} else if ((this->service->soap_fault()->detail->ns1__InvalidAuthorizationTokenException) && (attempts < this->authattempts)) {
+			attempts++;
+			if (this->authApplication() != CROWD_OK) {
+				return this->processFault();
+			}
+			principle.in0 = this->authToken;
+		} else {
+			return this->processFault();
 		}
-		this->cache->setPrincipleCache(username, attributes, true);
-		return CROWD_OK;
 	}
-	return this->processFault();
-
 }
 
 CrowdClientReturnCodes CrowdClient::getAllGroups(std::vector<std::string> *groups) {
@@ -412,18 +495,29 @@ CrowdClientReturnCodes CrowdClient::getAllGroups(std::vector<std::string> *group
 	_ns1__findAllGroupNames findgroups;
 	_ns1__findAllGroupNamesResponse findgroupsResponse;
 	findgroups.in0 = this->authToken;
-	if (this->service->findAllGroupNames(this->url.c_str(), NULL, &findgroups, &findgroupsResponse) == SOAP_OK) {
-		groups->clear();
-		groups->swap(findgroupsResponse.out->string);
-		this->cache->setAllGroupsCache(*groups);
-		return CROWD_OK;
+	int attempts = 0;
+	while (true) {
+		int ret = this->service->findAllGroupNames(this->url.c_str(), NULL, &findgroups, &findgroupsResponse);
+		if (ret== SOAP_OK) {
+			groups->clear();
+			groups->swap(findgroupsResponse.out->string);
+			this->cache->setAllGroupsCache(*groups);
+			return CROWD_OK;
+		} else if ((this->service->soap_fault()->detail->ns1__InvalidAuthorizationTokenException) && (attempts < this->authattempts)) {
+			attempts++;
+			if (this->authApplication() != CROWD_OK) {
+				return this->processFault();
+			}
+			findgroups.in0 = this->authToken;
+		} else {
+			return this->processFault();
+		}
 	}
-	return this->processFault();
 }
 
 CrowdClientReturnCodes CrowdClient::getGroup(std::string groupname, GroupDetails groupdetails) {
 	if (groupdetails.use_count() <= 0) {
-		groupdetails.reset(new GroupDetails_t());
+		return CROWD_ERR_INVALID_PARAM;
 	}
 	if (this->cache->getGroupCache(groupname, groupdetails, false) == CROWD_OK) {
 		return CROWD_OK;
@@ -435,38 +529,49 @@ CrowdClientReturnCodes CrowdClient::getGroup(std::string groupname, GroupDetails
 	_ns1__findGroupByNameResponse groupResponse;
 	group.in0 = this->authToken;
 	group.in1 = &groupname;
-	if (this->service->findGroupByName(this->url.c_str(), NULL, &group, &groupResponse) == SOAP_OK) {
-		if (groupResponse.out->ID)
-			groupdetails->id = *groupResponse.out->ID;
-		groupdetails->active = *groupResponse.out->active;
-		if (groupResponse.out->conception)
-			groupdetails->conception = *groupResponse.out->conception;
-		if (groupResponse.out->description)
-			groupdetails->description = *groupResponse.out->description;
-		if (groupResponse.out->directoryId)
-			groupdetails->directoryId = *groupResponse.out->directoryId;
-		if (groupResponse.out->lastModified)
-			groupdetails->lastModified = *groupResponse.out->lastModified;
-		if (groupResponse.out->name)
-			groupdetails->name = *groupResponse.out->name;
-		for (int i = 0; i < groupResponse.out->attributes->SOAPAttribute.size(); i++) {
-			ns3__SOAPAttribute *attribs = groupResponse.out->attributes->SOAPAttribute.at(i);
-			for (int k = 0; k < attribs->values->string.size(); k++) {
-				groupdetails->attributes[*attribs->name].push_back(attribs->values->string.at(k));
+	int attempts = 0;
+	while (true) {
+		int ret = this->service->findGroupByName(this->url.c_str(), NULL, &group, &groupResponse);
+		if (ret== SOAP_OK) {
+			if (groupResponse.out->ID)
+				groupdetails->id = *groupResponse.out->ID;
+			groupdetails->active = *groupResponse.out->active;
+			if (groupResponse.out->conception)
+				groupdetails->conception = *groupResponse.out->conception;
+			if (groupResponse.out->description)
+				groupdetails->description = *groupResponse.out->description;
+			if (groupResponse.out->directoryId)
+				groupdetails->directoryId = *groupResponse.out->directoryId;
+			if (groupResponse.out->lastModified)
+				groupdetails->lastModified = *groupResponse.out->lastModified;
+			if (groupResponse.out->name)
+				groupdetails->name = *groupResponse.out->name;
+			for (int i = 0; i < groupResponse.out->attributes->SOAPAttribute.size(); i++) {
+				ns3__SOAPAttribute *attribs = groupResponse.out->attributes->SOAPAttribute.at(i);
+				for (int k = 0; k < attribs->values->string.size(); k++) {
+					groupdetails->attributes[*attribs->name].push_back(attribs->values->string.at(k));
+				}
 			}
+			for (int i = 0; i < groupResponse.out->members->string.size(); i++) {
+				groupdetails->members.push_back(groupResponse.out->members->string.at(i));
+			}
+			this->cache->setGroupCache(groupdetails->name, groupdetails, false);
+			return CROWD_OK;
+		} else if ((this->service->soap_fault()->detail->ns1__InvalidAuthorizationTokenException) && (attempts < this->authattempts)) {
+			attempts++;
+			if (this->authApplication() != CROWD_OK) {
+				return this->processFault();
+			}
+			group.in0 = this->authToken;
+		} else {
+			return this->processFault();
 		}
-		for (int i = 0; i < groupResponse.out->members->string.size(); i++) {
-			groupdetails->members.push_back(groupResponse.out->members->string.at(i));
-		}
-		this->cache->setGroupCache(groupdetails->name, groupdetails, false);
-		return CROWD_OK;
 	}
-	return this->processFault();
 }
 
 CrowdClientReturnCodes CrowdClient::getGroupAttributes(std::string groupname, GroupDetails attributes) {
 	if (attributes.use_count() <= 0) {
-		attributes.reset(new GroupDetails_t());
+		return CROWD_ERR_INVALID_PARAM;
 	}
 	if (!this->isReady())
 		return CROWD_ERR_NOT_READY;
@@ -479,33 +584,44 @@ CrowdClientReturnCodes CrowdClient::getGroupAttributes(std::string groupname, Gr
 	_ns1__findGroupWithAttributesByNameResponse groupResponse;
 	group.in0 = this->authToken;
 	group.in1 = &groupname;
-	if (this->service->findGroupWithAttributesByName(this->url.c_str(), NULL, &group, &groupResponse) == SOAP_OK) {
-		if (groupResponse.out->ID)
-			attributes->id = *groupResponse.out->ID;
-		attributes->active = *groupResponse.out->active;
-		if (groupResponse.out->conception)
-			attributes->conception = *groupResponse.out->conception;
-		if (groupResponse.out->description)
-			attributes->description = *groupResponse.out->description;
-		if (groupResponse.out->directoryId)
-			attributes->directoryId = *groupResponse.out->directoryId;
-		if (groupResponse.out->lastModified)
-			attributes->lastModified = *groupResponse.out->lastModified;
-		if (groupResponse.out->name)
-			attributes->name = *groupResponse.out->name;
-		for (int i = 0; i < groupResponse.out->attributes->SOAPAttribute.size(); i++) {
-			ns3__SOAPAttribute *attribs = groupResponse.out->attributes->SOAPAttribute.at(i);
-			for (int k = 0; k < attribs->values->string.size(); k++) {
-				attributes->attributes[*attribs->name].push_back(attribs->values->string.at(k));
+	int attempts = 0;
+	while (true) {
+		int ret = this->service->findGroupWithAttributesByName(this->url.c_str(), NULL, &group, &groupResponse);
+		if (ret == SOAP_OK) {
+			if (groupResponse.out->ID)
+				attributes->id = *groupResponse.out->ID;
+			attributes->active = *groupResponse.out->active;
+			if (groupResponse.out->conception)
+				attributes->conception = *groupResponse.out->conception;
+			if (groupResponse.out->description)
+				attributes->description = *groupResponse.out->description;
+			if (groupResponse.out->directoryId)
+				attributes->directoryId = *groupResponse.out->directoryId;
+			if (groupResponse.out->lastModified)
+				attributes->lastModified = *groupResponse.out->lastModified;
+			if (groupResponse.out->name)
+				attributes->name = *groupResponse.out->name;
+			for (int i = 0; i < groupResponse.out->attributes->SOAPAttribute.size(); i++) {
+				ns3__SOAPAttribute *attribs = groupResponse.out->attributes->SOAPAttribute.at(i);
+				for (int k = 0; k < attribs->values->string.size(); k++) {
+					attributes->attributes[*attribs->name].push_back(attribs->values->string.at(k));
+				}
 			}
+			for (int i = 0; i < groupResponse.out->members->string.size(); i++) {
+				attributes->members.push_back(groupResponse.out->members->string.at(i));
+			}
+			this->cache->setGroupCache(attributes->name, attributes, true);
+			return CROWD_OK;
+		} else if ((this->service->soap_fault()->detail->ns1__InvalidAuthorizationTokenException) && (attempts < this->authattempts)) {
+			attempts++;
+			if (this->authApplication() != CROWD_OK) {
+				return this->processFault();
+			}
+			group.in0 = this->authToken;
+		} else {
+			return this->processFault();
 		}
-		for (int i = 0; i < groupResponse.out->members->string.size(); i++) {
-			attributes->members.push_back(groupResponse.out->members->string.at(i));
-		}
-		this->cache->setGroupCache(attributes->name, attributes, true);
-		return CROWD_OK;
 	}
-	return this->processFault();
 }
 CrowdClientReturnCodes CrowdClient::getPrincipleGroups(std::string username, std::vector<std::string> *groups) {
 	if (!this->isReady())
@@ -520,14 +636,26 @@ CrowdClientReturnCodes CrowdClient::getPrincipleGroups(std::string username, std
 	_ns1__findGroupMembershipsResponse groupmembershipResponse;
 	groupmembership.in0 = this->authToken;
 	groupmembership.in1 = &username;
-	if (this->service->findGroupMemberships(this->url.c_str(), NULL, &groupmembership, &groupmembershipResponse) == SOAP_OK) {
-		groups->clear();
-		groups->swap(groupmembershipResponse.out->string);
-		this->cache->setPrincipleGroupsCache(username, *groups);
-		return CROWD_OK;
+	int attempts = 0;
+	while (true) {
+		int ret = this->service->findGroupMemberships(this->url.c_str(), NULL, &groupmembership, &groupmembershipResponse);
+		if (ret == SOAP_OK) {
+			groups->clear();
+			groups->swap(groupmembershipResponse.out->string);
+			this->cache->setPrincipleGroupsCache(username, *groups);
+			return CROWD_OK;
+		} else if ((this->service->soap_fault()->detail->ns1__InvalidAuthorizationTokenException) && (attempts < this->authattempts)) {
+			attempts++;
+			if (this->authApplication() != CROWD_OK) {
+				return this->processFault();
+			}
+			groupmembership.in0 = this->authToken;
+		} else {
+			return this->processFault();
+		}
 	}
-	return this->processFault();
 }
+
 
 CrowdClientReturnCodes CrowdClient::getApplicationGroups(std::vector<std::string> *groups) {
 	if (!this->isReady())
@@ -538,13 +666,24 @@ CrowdClientReturnCodes CrowdClient::getApplicationGroups(std::vector<std::string
 	_ns1__getGrantedAuthorities appgroups;
 	_ns1__getGrantedAuthoritiesResponse appgroupsResponse;
 	appgroups.in0 = this->authToken;
-	if (this->service->getGrantedAuthorities(this->url.c_str(), NULL, &appgroups, &appgroupsResponse) == SOAP_OK) {
-		groups->clear();
-		groups->swap(appgroupsResponse.out->string);
-		this->cache->setApplicationGroupsCache(*groups);
-		return CROWD_OK;
+	int attempts = 0;
+	while (true) {
+		int ret = this->service->getGrantedAuthorities(this->url.c_str(), NULL, &appgroups, &appgroupsResponse);
+		if (ret== SOAP_OK) {
+			groups->clear();
+			groups->swap(appgroupsResponse.out->string);
+			this->cache->setApplicationGroupsCache(*groups);
+			return CROWD_OK;
+		} else if ((this->service->soap_fault()->detail->ns1__InvalidAuthorizationTokenException) && (attempts < this->authattempts)) {
+			attempts++;
+			if (this->authApplication() != CROWD_OK) {
+				return this->processFault();
+			}
+			appgroups.in0 = this->authToken;
+		} else {
+			return this->processFault();
+		}
 	}
-	return this->processFault();
 }
 CrowdClientReturnCodes CrowdClient::getAllPrinciples(std::vector<std::string> *users) {
 	if (!this->isReady())
@@ -555,22 +694,33 @@ CrowdClientReturnCodes CrowdClient::getAllPrinciples(std::vector<std::string> *u
 	_ns1__findAllPrincipalNames principles;
 	_ns1__findAllPrincipalNamesResponse principlesResponse;
 	principles.in0 = this->authToken;
-	if (this->service->findAllPrincipalNames(this->url.c_str(), NULL, &principles, &principlesResponse) == SOAP_OK) {
-		users->clear();
-		users->swap(principlesResponse.out->string);
-		this->cache->setAllUsersCache(*users);
-		return CROWD_OK;
+	int attempts = 0;
+	while (true) {
+		int ret = this->service->findAllPrincipalNames(this->url.c_str(), NULL, &principles, &principlesResponse);
+		if (ret == SOAP_OK) {
+			users->clear();
+			users->swap(principlesResponse.out->string);
+			this->cache->setAllUsersCache(*users);
+			return CROWD_OK;
+		} else if ((this->service->soap_fault()->detail->ns1__InvalidAuthorizationTokenException) && (attempts < this->authattempts)) {
+			attempts++;
+			if (this->authApplication() != CROWD_OK) {
+				return this->processFault();
+			}
+			principles.in0 = this->authToken;
+		} else {
+			return this->processFault();
+		}
 	}
-	return this->processFault();
 }
 
 CrowdClientReturnCodes CrowdClient::addPrinciple(std::string username, std::string firstname, std::string lastname, std::string email, std::string password, PrincipleDetails attributes) {
 	if (attributes.use_count() <= 0) {
-		attributes.reset(new PrincipleDetails_t());
+		return CROWD_ERR_INVALID_PARAM;
 	}
 	if (!this->isReady())
 		return CROWD_ERR_NOT_READY;
-	bool ret = false;
+	bool success = false;
 	_ns1__addPrincipal principle;
 	_ns1__addPrincipalResponse principleResponse;
 	principle.in0 = this->authToken;
@@ -607,31 +757,47 @@ CrowdClientReturnCodes CrowdClient::addPrinciple(std::string username, std::stri
 	principle.in2 = new ns2__PasswordCredential();
 	principle.in2->credential = &password;
 	//principle.in2->encryptedCredential = false;
-
-	if (this->service->addPrincipal(this->url.c_str(), NULL, &principle, &principleResponse) == SOAP_OK) {
-		if (principleResponse.out->ID)
-			attributes->id = *principleResponse.out->ID;
-		attributes->active = *principleResponse.out->active;
-		if (principleResponse.out->conception)
-			attributes->conception = *principleResponse.out->conception;
-		if (principleResponse.out->description)
-			attributes->description = *principleResponse.out->description;
-		if (principleResponse.out->directoryId)
-			attributes->directoryId = *principleResponse.out->directoryId;
-		if (principleResponse.out->lastModified)
-			attributes->lastModified = *principleResponse.out->lastModified;
-		if (principleResponse.out->name)
-			attributes->name = *principleResponse.out->name;
-		for (int i = 0; i < principleResponse.out->attributes->SOAPAttribute.size(); i++) {
-			ns3__SOAPAttribute *attribs = principleResponse.out->attributes->SOAPAttribute.at(i);
-			for (int k = 0; k < attribs->values->string.size(); k++) {
-				attributes->attributes[*attribs->name].push_back(attribs->values->string.at(k));
+	int attempts = 0;
+	while (true) {
+		int ret = this->service->addPrincipal(this->url.c_str(), NULL, &principle, &principleResponse);
+		if (ret== SOAP_OK) {
+			if (principleResponse.out->ID)
+				attributes->id = *principleResponse.out->ID;
+			attributes->active = *principleResponse.out->active;
+			if (principleResponse.out->conception)
+				attributes->conception = *principleResponse.out->conception;
+			if (principleResponse.out->description)
+				attributes->description = *principleResponse.out->description;
+			if (principleResponse.out->directoryId)
+				attributes->directoryId = *principleResponse.out->directoryId;
+			if (principleResponse.out->lastModified)
+				attributes->lastModified = *principleResponse.out->lastModified;
+			if (principleResponse.out->name)
+				attributes->name = *principleResponse.out->name;
+			for (int i = 0; i < principleResponse.out->attributes->SOAPAttribute.size(); i++) {
+				ns3__SOAPAttribute *attribs = principleResponse.out->attributes->SOAPAttribute.at(i);
+				for (int k = 0; k < attribs->values->string.size(); k++) {
+					attributes->attributes[*attribs->name].push_back(attribs->values->string.at(k));
+				}
 			}
+			this->cache->setPrincipleCache(attributes->name, attributes, false);
+			this->cache->invalidateAllUsersCache();
+			success = true;
+			break;
+		} else if ((this->service->soap_fault()->detail->ns1__InvalidAuthorizationTokenException) && (attempts < this->authattempts)) {
+			attempts++;
+			if (this->authApplication() != CROWD_OK) {
+				success = false;
+				break;
+			}
+			principle.in0 = this->authToken;
+		} else {
+			success = false;
+			break;
 		}
-		this->cache->setPrincipleCache(attributes->name, attributes, false);
-		this->cache->invalidateAllUsersCache();
-		ret = true;
 	}
+
+
 	delete principle.in1->attributes;
 	delete principle.in1->active;
 	delete principle.in1;
@@ -644,7 +810,7 @@ CrowdClientReturnCodes CrowdClient::addPrinciple(std::string username, std::stri
 	delete mail.name;
 	delete mail.values;
 	delete principle.in2;
-	if (ret == false)
+	if (success == false)
 		return this->processFault();
 	return CROWD_OK;
 }
@@ -656,20 +822,31 @@ CrowdClientReturnCodes CrowdClient::removePrinciple(std::string username) {
 	_ns1__removePrincipalResponse principleResponse;
 	principle.in0 = this->authToken;
 	principle.in1 = &username;
-	if (this->service->removePrincipal(this->url.c_str(), NULL, &principle, &principleResponse) == SOAP_OK) {
-		this->cache->invalidatePrincipleCache(username);
-		this->cache->invalidatePrincipleGroupCache(username);
-		this->cache->invalidateAllUsersCache();
+	int attempts = 0;
+	while (true) {
+		int ret = this->service->removePrincipal(this->url.c_str(), NULL, &principle, &principleResponse);
+		if (ret	== SOAP_OK) {
+			this->cache->invalidatePrincipleCache(username);
+			this->cache->invalidatePrincipleGroupCache(username);
+			this->cache->invalidateAllUsersCache();
 
-		return CROWD_OK;
+			return CROWD_OK;
+		} else if ((this->service->soap_fault()->detail->ns1__InvalidAuthorizationTokenException) && (attempts < this->authattempts)) {
+			attempts++;
+			if (this->authApplication() != CROWD_OK) {
+				return this->processFault();
+			}
+			principle.in0 = this->authToken;
+		} else {
+			return this->processFault();
+		}
 	}
-	return this->processFault();
 }
 
 CrowdClientReturnCodes CrowdClient::addPrincipleAttributes(std::string username, std::string attributename, std::vector<std::string> attributevals) {
 	if (!this->isReady())
 		return CROWD_ERR_NOT_READY;
-	bool ret = false;
+	bool success = false;
 	_ns1__addAttributeToPrincipal principle;
 	_ns1__addAttributeToPrincipalResponse principleResponse;
 	principle.in0 = this->authToken;
@@ -680,12 +857,27 @@ CrowdClientReturnCodes CrowdClient::addPrincipleAttributes(std::string username,
 	for (int i = 0; i < attributevals.size(); i++) {
 		principle.in2->values->string.push_back(attributevals.at(i));
 	}
-	if (this->service->addAttributeToPrincipal(this->url.c_str(), NULL, &principle, &principleResponse) == SOAP_OK) {
-		ret = true;
+	int attempts = 0;
+	while (true) {
+		int ret = this->service->addAttributeToPrincipal(this->url.c_str(), NULL, &principle, &principleResponse);
+		if (ret == SOAP_OK) {
+			success = true;
+		} else if ((this->service->soap_fault()->detail->ns1__InvalidAuthorizationTokenException) && (attempts < this->authattempts)) {
+			attempts++;
+			if (this->authApplication() != CROWD_OK) {
+				success = false;
+				break;
+			}
+			principle.in0 = this->authToken;
+		} else {
+			success = false;
+			break;
+		}
+
 	}
 	delete principle.in2->values;
 	delete principle.in2;
-	if (ret == false)
+	if (success == false)
 		return this->processFault();
 	this->cache->invalidatePrincipleCache(username);
 	return CROWD_OK;
@@ -698,17 +890,28 @@ CrowdClientReturnCodes CrowdClient::removePrincipleAttributes(std::string userna
 	attrib.in0 = this->authToken;
 	attrib.in1 = &username;
 	attrib.in2 = &attribute;
-	if (this->service->removeAttributeFromPrincipal(this->url.c_str(), NULL, &attrib, &attribResponse) == SOAP_OK) {
-		this->cache->invalidatePrincipleCache(username);
-		return CROWD_OK;
+	int attempts = 0;
+	while (true) {
+		int ret = this->service->removeAttributeFromPrincipal(this->url.c_str(), NULL, &attrib, &attribResponse);
+		if (ret == SOAP_OK) {
+			this->cache->invalidatePrincipleCache(username);
+			return CROWD_OK;
+		} else if ((this->service->soap_fault()->detail->ns1__InvalidAuthorizationTokenException) && (attempts < this->authattempts)) {
+			attempts++;
+			if (this->authApplication() != CROWD_OK) {
+				return this->processFault();
+			}
+			attrib.in0 = this->authToken;
+		} else {
+			return this->processFault();
+		}
 	}
-	return this->processFault();
 }
 
 CrowdClientReturnCodes CrowdClient::updatePrincipleAttributes(std::string username, std::string attributename, std::vector<std::string> attributevals) {
 	if (!this->isReady())
 		return CROWD_ERR_NOT_READY;
-	bool ret = false;
+	bool success = false;
 	_ns1__updatePrincipalAttribute principle;
 	_ns1__updatePrincipalAttributeResponse principleResponse;
 	principle.in0 = this->authToken;
@@ -719,12 +922,27 @@ CrowdClientReturnCodes CrowdClient::updatePrincipleAttributes(std::string userna
 	for (int i = 0; i < attributevals.size(); i++) {
 		principle.in2->values->string.push_back(attributevals.at(i));
 	}
-	if (this->service->updatePrincipalAttribute(this->url.c_str(), NULL, &principle, &principleResponse) == SOAP_OK) {
-		ret = true;
+	int attempts = 0;
+	while (true) {
+		int ret = this->service->updatePrincipalAttribute(this->url.c_str(), NULL, &principle, &principleResponse);
+		if (ret== SOAP_OK) {
+			success = true;
+			break;
+		} else if ((this->service->soap_fault()->detail->ns1__InvalidAuthorizationTokenException) && (attempts < this->authattempts)) {
+			attempts++;
+			if (this->authApplication() != CROWD_OK) {
+				success = false;
+				break;
+			}
+			principle.in0 = this->authToken;
+		} else {
+			success = false;
+			break;
+		}
 	}
 	delete principle.in2->values;
 	delete principle.in2;
-	if (ret == false)
+	if (success == false)
 		return this->processFault();
 
 	this->cache->invalidatePrincipleCache(username);
@@ -733,11 +951,11 @@ CrowdClientReturnCodes CrowdClient::updatePrincipleAttributes(std::string userna
 
 CrowdClientReturnCodes CrowdClient::addGroup(std::string groupname, std::string description, GroupDetails attributes) {
 	if (attributes.use_count() <= 0) {
-		attributes.reset(new GroupDetails_t());
+		return CROWD_ERR_INVALID_PARAM;
 	}
 	if (!this->isReady())
 		return CROWD_ERR_NOT_READY;
-	bool ret = false;
+	bool success = false;
 	_ns1__addGroup group;
 	_ns1__addGroupResponse groupResponse;
 	group.in0 = this->authToken;
@@ -745,34 +963,49 @@ CrowdClientReturnCodes CrowdClient::addGroup(std::string groupname, std::string 
 	group.in1->active = new bool(true);
 	group.in1->name = &groupname;
 	group.in1->description = &description;
-	if (this->service->addGroup(this->url.c_str(), NULL, &group, &groupResponse) == SOAP_OK) {
-		if (groupResponse.out->ID)
-			attributes->id = *groupResponse.out->ID;
-		attributes->active = *groupResponse.out->active;
-		if (groupResponse.out->conception)
-			attributes->conception = *groupResponse.out->conception;
-		if (groupResponse.out->description)
-			attributes->description = *groupResponse.out->description;
-		if (groupResponse.out->directoryId)
-			attributes->directoryId = *groupResponse.out->directoryId;
-		if (groupResponse.out->lastModified)
-			attributes->lastModified = *groupResponse.out->lastModified;
-		if (groupResponse.out->name)
-			attributes->name = *groupResponse.out->name;
-		for (int i = 0; i < groupResponse.out->attributes->SOAPAttribute.size(); i++) {
-			ns3__SOAPAttribute *attribs = groupResponse.out->attributes->SOAPAttribute.at(i);
-			for (int k = 0; k < attribs->values->string.size(); k++) {
-				attributes->attributes[*attribs->name].push_back(attribs->values->string.at(k));
+	int attempts = 0;
+	while (true) {
+		int ret = this->service->addGroup(this->url.c_str(), NULL, &group, &groupResponse);
+		if (ret== SOAP_OK) {
+			if (groupResponse.out->ID)
+				attributes->id = *groupResponse.out->ID;
+			attributes->active = *groupResponse.out->active;
+			if (groupResponse.out->conception)
+				attributes->conception = *groupResponse.out->conception;
+			if (groupResponse.out->description)
+				attributes->description = *groupResponse.out->description;
+			if (groupResponse.out->directoryId)
+				attributes->directoryId = *groupResponse.out->directoryId;
+			if (groupResponse.out->lastModified)
+				attributes->lastModified = *groupResponse.out->lastModified;
+			if (groupResponse.out->name)
+				attributes->name = *groupResponse.out->name;
+			for (int i = 0; i < groupResponse.out->attributes->SOAPAttribute.size(); i++) {
+				ns3__SOAPAttribute *attribs = groupResponse.out->attributes->SOAPAttribute.at(i);
+				for (int k = 0; k < attribs->values->string.size(); k++) {
+					attributes->attributes[*attribs->name].push_back(attribs->values->string.at(k));
+				}
 			}
+			for (int i = 0; i < groupResponse.out->members->string.size(); i++) {
+				attributes->members.push_back(groupResponse.out->members->string.at(i));
+			}
+			success = true;
+			break;
+		} else if ((this->service->soap_fault()->detail->ns1__InvalidAuthorizationTokenException) && (attempts < this->authattempts)) {
+			attempts++;
+			if (this->authApplication() != CROWD_OK) {
+				success = false;
+				break;
+			}
+			group.in0 = this->authToken;
+		} else {
+			success = false;
+			break;
 		}
-		for (int i = 0; i < groupResponse.out->members->string.size(); i++) {
-			attributes->members.push_back(groupResponse.out->members->string.at(i));
-		}
-		ret = true;
 	}
 	delete group.in1->active;
 	delete group.in1;
-	if (ret == false)
+	if (success == false)
 		return this->processFault();
 	this->cache->invalidateAllGroupCache();
 	this->cache->invalidateApplicationGroupCache();
@@ -788,11 +1021,22 @@ CrowdClientReturnCodes CrowdClient::updateGroup(std::string name, std::string de
 	group.in1 = &name;
 	group.in2 = &description;
 	group.in3 = active;
-	if (this->service->updateGroup(this->url.c_str(), NULL, &group, &groupResponse) == SOAP_OK) {
-		this->cache->invalidateGroupCache(name);
-		return CROWD_OK;
+	int attempts = 0;
+	while (true) {
+		int ret = this->service->updateGroup(this->url.c_str(), NULL, &group, &groupResponse);
+		if (ret == SOAP_OK) {
+			this->cache->invalidateGroupCache(name);
+			return CROWD_OK;
+		} else if ((this->service->soap_fault()->detail->ns1__InvalidAuthorizationTokenException) && (attempts < this->authattempts)) {
+			attempts++;
+			if (this->authApplication() != CROWD_OK) {
+				return this->processFault();
+			}
+			group.in0 = this->authToken;
+		} else {
+			return this->processFault();
+		}
 	}
-	return this->processFault();
 
 }
 CrowdClientReturnCodes CrowdClient::removeGroup(std::string name) {
@@ -802,14 +1046,25 @@ CrowdClientReturnCodes CrowdClient::removeGroup(std::string name) {
 	_ns1__removeGroupResponse groupResponse;
 	group.in0 = this->authToken;
 	group.in1 = &name;
-	if (this->service->removeGroup(this->url.c_str(), NULL, &group, &groupResponse) == SOAP_OK) {
-		this->cache->invalidateGroupCaches();
-		this->cache->invalidateAllGroupCache();
-		this->cache->invalidateGroupCache(name);
-		this->cache->invalidateApplicationGroupCache();
-		return CROWD_OK;
+	int attempts = 0;
+	while (true) {
+		int ret = this->service->removeGroup(this->url.c_str(), NULL, &group, &groupResponse);
+		if (ret== SOAP_OK) {
+			this->cache->invalidateGroupCaches();
+			this->cache->invalidateAllGroupCache();
+			this->cache->invalidateGroupCache(name);
+			this->cache->invalidateApplicationGroupCache();
+			return CROWD_OK;
+		} else if ((this->service->soap_fault()->detail->ns1__InvalidAuthorizationTokenException) && (attempts < this->authattempts)) {
+			attempts++;
+			if (this->authApplication() != CROWD_OK) {
+				return this->processFault();
+			}
+			group.in0 = this->authToken;
+		} else {
+			return this->processFault();
+		}
 	}
-	return this->processFault();
 }
 CrowdClientReturnCodes CrowdClient::addGroupMember(std::string groupname, std::string principle) {
 	if (!this->isReady())
@@ -819,16 +1074,26 @@ CrowdClientReturnCodes CrowdClient::addGroupMember(std::string groupname, std::s
 	group.in0 = this->authToken;
 	group.in2 = &groupname;
 	group.in1 = &principle;
-	if (this->service->addPrincipalToGroup(this->url.c_str(), NULL, &group, &groupResponse) == SOAP_OK) {
-		this->cache->invalidateIsGroupMemberCache(groupname, principle);
-		this->cache->invalidatePrincipleGroupCache(principle);
-		this->cache->invalidateGroupCache(groupname);
-		this->cache->invalidateAllUsersCache();
+	int attempts = 0;
+	while (true) {
+		int ret = this->service->addPrincipalToGroup(this->url.c_str(), NULL, &group, &groupResponse);
+		if (ret== SOAP_OK) {
+			this->cache->invalidateIsGroupMemberCache(groupname, principle);
+			this->cache->invalidatePrincipleGroupCache(principle);
+			this->cache->invalidateGroupCache(groupname);
+			this->cache->invalidateAllUsersCache();
 
-		return CROWD_OK;
+			return CROWD_OK;
+		} else if ((this->service->soap_fault()->detail->ns1__InvalidAuthorizationTokenException) && (attempts < this->authattempts)) {
+			attempts++;
+			if (this->authApplication() != CROWD_OK) {
+				return this->processFault();
+			}
+			group.in0 = this->authToken;
+		} else {
+			return this->processFault();
+		}
 	}
-	return this->processFault();
-
 }
 CrowdClientReturnCodes CrowdClient::removeGroupMember(std::string groupname, std::string principle) {
 	if (!this->isReady())
@@ -838,21 +1103,32 @@ CrowdClientReturnCodes CrowdClient::removeGroupMember(std::string groupname, std
 	group.in0 = this->authToken;
 	group.in2 = &groupname;
 	group.in1 = &principle;
-	if (this->service->removePrincipalFromGroup(this->url.c_str(), NULL, &group, &groupResponse) == SOAP_OK) {
-		this->cache->invalidateIsGroupMemberCache(groupname, principle);
-		this->cache->invalidatePrincipleGroupCache(principle);
-		this->cache->invalidateGroupCache(groupname);
-		this->cache->invalidateAllUsersCache();
+	int attempts = 0;
+	while (true) {
+		int ret = this->service->removePrincipalFromGroup(this->url.c_str(), NULL, &group, &groupResponse);
+		if (ret== SOAP_OK) {
+			this->cache->invalidateIsGroupMemberCache(groupname, principle);
+			this->cache->invalidatePrincipleGroupCache(principle);
+			this->cache->invalidateGroupCache(groupname);
+			this->cache->invalidateAllUsersCache();
 
-		return CROWD_OK;
+			return CROWD_OK;
+		} else if ((this->service->soap_fault()->detail->ns1__InvalidAuthorizationTokenException) && (attempts < this->authattempts)) {
+			attempts++;
+			if (this->authApplication() != CROWD_OK) {
+				return this->processFault();
+			}
+			group.in0 = this->authToken;
+		} else {
+			return this->processFault();
+		}
 	}
-	return this->processFault();
 }
 
 CrowdClientReturnCodes CrowdClient::addGroupAttributes(std::string groupname, std::string attributename, std::vector<std::string> attributevals) {
 	if (!this->isReady())
 		return CROWD_ERR_NOT_READY;
-	bool ret = false;
+	bool success = false;
 	_ns1__addAttributeToGroup group;
 	_ns1__addAttributeToGroupResponse groupResponse;
 	group.in0 = this->authToken;
@@ -863,12 +1139,27 @@ CrowdClientReturnCodes CrowdClient::addGroupAttributes(std::string groupname, st
 	for (int i = 0; i < attributevals.size(); i++) {
 		group.in2->values->string.push_back(attributevals.at(i));
 	}
-	if (this->service->addAttributeToGroup(this->url.c_str(), NULL, &group, &groupResponse) == SOAP_OK) {
-		ret = true;
+	int attempts = 0;
+	while (true) {
+		int ret = this->service->addAttributeToGroup(this->url.c_str(), NULL, &group, &groupResponse);
+		if (ret == SOAP_OK) {
+			success = true;
+			break;
+		} else if ((this->service->soap_fault()->detail->ns1__InvalidAuthorizationTokenException) && (attempts < this->authattempts)) {
+			attempts++;
+			if (this->authApplication() != CROWD_OK) {
+				success = false;
+				break;
+			}
+			group.in0 = this->authToken;
+		} else {
+			success = false;
+			break;
+		}
 	}
 	delete group.in2->values;
 	delete group.in2;
-	if (ret == false)
+	if (success == false)
 		return this->processFault();
 	this->cache->invalidateGroupCache(groupname);
 	return CROWD_OK;
@@ -877,7 +1168,7 @@ CrowdClientReturnCodes CrowdClient::addGroupAttributes(std::string groupname, st
 CrowdClientReturnCodes CrowdClient::updateGroupAttributes(std::string groupname, std::string attributename, std::vector<std::string> attributevals) {
 	if (!this->isReady())
 		return CROWD_ERR_NOT_READY;
-	bool ret = false;
+	bool success = false;
 	_ns1__updateGroupAttribute group;
 	_ns1__updateGroupAttributeResponse groupResponse;
 	group.in0 = this->authToken;
@@ -888,13 +1179,29 @@ CrowdClientReturnCodes CrowdClient::updateGroupAttributes(std::string groupname,
 	for (int i = 0; i < attributevals.size(); i++) {
 		group.in2->values->string.push_back(attributevals.at(i));
 	}
-	if (this->service->updateGroupAttribute(this->url.c_str(), NULL, &group, &groupResponse) == SOAP_OK) {
-		ret = true;
+	int attempts = 0;
+	while (true) {
+		int ret = this->service->updateGroupAttribute(this->url.c_str(), NULL, &group, &groupResponse);
+		if (ret== SOAP_OK) {
+			ret = true;
+			break;
+		} else if ((this->service->soap_fault()->detail->ns1__InvalidAuthorizationTokenException) && (attempts < this->authattempts)) {
+			attempts++;
+			if (this->authApplication() != CROWD_OK) {
+				success = false;
+				break;
+			}
+			group.in0 = this->authToken;
+		} else {
+			success = false;
+			break;
+		}
+
 	}
 	delete group.in2->values;
 
 	delete group.in2;
-	if (ret == false)
+	if (success == false)
 		return this->processFault();
 	this->cache->invalidateGroupCache(groupname);
 	return CROWD_OK;
@@ -907,17 +1214,28 @@ CrowdClientReturnCodes CrowdClient::removeGroupAttributes(std::string groupname,
 	attrib.in0 = this->authToken;
 	attrib.in1 = &groupname;
 	attrib.in2 = &attribute;
-	if (this->service->removeAttributeFromGroup(this->url.c_str(), NULL, &attrib, &attribResponse) == SOAP_OK) {
-		this->cache->invalidateGroupCache(groupname);
-		return CROWD_OK;
+	int attempts = 0;
+	while (true) {
+		int ret = this->service->removeAttributeFromGroup(this->url.c_str(), NULL, &attrib, &attribResponse);
+		if (ret == SOAP_OK) {
+			this->cache->invalidateGroupCache(groupname);
+			return CROWD_OK;
+		} else if ((this->service->soap_fault()->detail->ns1__InvalidAuthorizationTokenException) && (attempts < this->authattempts)) {
+			attempts++;
+			if (this->authApplication() != CROWD_OK) {
+				return this->processFault();
+			}
+			attrib.in0 = this->authToken;
+		} else {
+			return this->processFault();
+		}
 	}
-	return this->processFault();
 }
 
 CrowdClientReturnCodes CrowdClient::resetPrinciplePassword(std::string user, std::string password) {
 	if (!this->isReady())
 		return CROWD_ERR_NOT_READY;
-	bool ret = false;
+	bool success = false;
 	_ns1__updatePrincipalCredential principle;
 	_ns1__updatePrincipalCredentialResponse principleResponse;
 	principle.in0 = this->authToken;
@@ -925,12 +1243,29 @@ CrowdClientReturnCodes CrowdClient::resetPrinciplePassword(std::string user, std
 	principle.in2 = new ns2__PasswordCredential();
 	principle.in2->credential = &password;
 	principle.in2->encryptedCredential = new bool(false);
-	if (this->service->updatePrincipalCredential(this->url.c_str(), NULL, &principle, &principleResponse) == SOAP_OK) {
-		ret = true;
+	int attempts = 0;
+	while (true) {
+		int ret = this->service->updatePrincipalCredential(this->url.c_str(), NULL, &principle, &principleResponse);
+		if (ret == SOAP_OK) {
+			ret = true;
+			break;
+		} else if ((this->service->soap_fault()->detail->ns1__InvalidAuthorizationTokenException) && (attempts < this->authattempts)) {
+			attempts++;
+			if (this->authApplication() != CROWD_OK) {
+				success = false;
+				break;
+			}
+			principle.in0 = this->authToken;
+		} else {
+			success = false;
+			break;
+		}
+
 	}
+
 	delete principle.in2->encryptedCredential;
 	delete principle.in2;
-	if (ret == false)
+	if (success == false)
 		return this->processFault();
 
 	this->cache->invalidatePrincipleCache(user);
@@ -940,7 +1275,7 @@ CrowdClientReturnCodes CrowdClient::resetPrinciplePassword(std::string user, std
 CrowdClientReturnCodes CrowdClient::searchPrinciples(std::vector< searchParams * > search, std::vector<PrincipleDetails > *results) {
 	if (!this->isReady())
 		return CROWD_ERR_NOT_READY;
-	bool ret = false;
+	bool success = false;
 	_ns1__searchPrincipals searchPrinciple;
 	_ns1__searchPrincipalsResponse searchPrincipleResponse;
 	searchPrinciple.in0 = this->authToken;
@@ -951,42 +1286,64 @@ CrowdClientReturnCodes CrowdClient::searchPrinciples(std::vector< searchParams *
 		param->value = &(search.at(i))->value;
 		searchPrinciple.in1->SearchRestriction.push_back(param);
 	}
-	if (this->service->searchPrincipals(this->url.c_str(), NULL, &searchPrinciple, &searchPrincipleResponse) == SOAP_OK) {
-		ret = true;
-		while (searchPrinciple.in1->SearchRestriction.size() > 0) {
-			delete searchPrinciple.in1->SearchRestriction.back();
-			searchPrinciple.in1->SearchRestriction.pop_back();
-		}
-		delete searchPrinciple.in1;
-		if (searchPrincipleResponse.out->SOAPPrincipal.size() == 0)
-			return CROWD_NAK;
-		for (int i = 0; i < searchPrincipleResponse.out->SOAPPrincipal.size(); i++) {
-			PrincipleDetails attributes = boost::make_shared<PrincipleDetails_t>();
-			if (searchPrincipleResponse.out->SOAPPrincipal.at(i)->ID)
-				attributes->id = *searchPrincipleResponse.out->SOAPPrincipal.at(i)->ID;
-			attributes->active = *searchPrincipleResponse.out->SOAPPrincipal.at(i)->active;
-			if (searchPrincipleResponse.out->SOAPPrincipal.at(i)->conception)
-				attributes->conception = *searchPrincipleResponse.out->SOAPPrincipal.at(i)->conception;
-			if (searchPrincipleResponse.out->SOAPPrincipal.at(i)->description)
-				attributes->description = *searchPrincipleResponse.out->SOAPPrincipal.at(i)->description;
-			if (searchPrincipleResponse.out->SOAPPrincipal.at(i)->directoryId)
-				attributes->directoryId = *searchPrincipleResponse.out->SOAPPrincipal.at(i)->directoryId;
-			if (searchPrincipleResponse.out->SOAPPrincipal.at(i)->lastModified)
-				attributes->lastModified = *searchPrincipleResponse.out->SOAPPrincipal.at(i)->lastModified;
-			if (searchPrincipleResponse.out->SOAPPrincipal.at(i)->name)
-				attributes->name = *searchPrincipleResponse.out->SOAPPrincipal.at(i)->name;
-			for (int j = 0; j < searchPrincipleResponse.out->SOAPPrincipal.at(i)->attributes->SOAPAttribute.size(); j++) {
-				ns3__SOAPAttribute *attribs = searchPrincipleResponse.out->SOAPPrincipal.at(i)->attributes->SOAPAttribute.at(j);
-				for (int k = 0; k < attribs->values->string.size(); k++) {
-					attributes->attributes[*attribs->name].push_back(attribs->values->string.at(k));
-				}
+	int attempts = 0;
+	while (true) {
+		int ret = this->service->searchPrincipals(this->url.c_str(), NULL, &searchPrinciple, &searchPrincipleResponse);
+		if (ret == SOAP_OK) {
+			ret = true;
+			break;
+		} else if ((this->service->soap_fault()->detail->ns1__InvalidAuthorizationTokenException) && (attempts < this->authattempts)) {
+			attempts++;
+			if (this->authApplication() != CROWD_OK) {
+				success = false;
+				break;
 			}
-			this->cache->setPrincipleCache(attributes->name, attributes, false);
-			results->push_back(attributes);
+			searchPrinciple.in0 = this->authToken;
+		} else {
+			success = false;
+			break;
 		}
+
 	}
-	if (ret == false)
+	while (searchPrinciple.in1->SearchRestriction.size() > 0) {
+		delete searchPrinciple.in1->SearchRestriction.back();
+		searchPrinciple.in1->SearchRestriction.pop_back();
+	}
+	delete searchPrinciple.in1;
+	if (searchPrincipleResponse.out->SOAPPrincipal.size() == 0)
+		return CROWD_NAK;
+	for (int i = 0; i < searchPrincipleResponse.out->SOAPPrincipal.size(); i++) {
+		PrincipleDetails attributes = boost::make_shared<PrincipleDetails_t>();
+		if (searchPrincipleResponse.out->SOAPPrincipal.at(i)->ID)
+			attributes->id = *searchPrincipleResponse.out->SOAPPrincipal.at(i)->ID;
+		attributes->active = *searchPrincipleResponse.out->SOAPPrincipal.at(i)->active;
+		if (searchPrincipleResponse.out->SOAPPrincipal.at(i)->conception)
+			attributes->conception = *searchPrincipleResponse.out->SOAPPrincipal.at(i)->conception;
+		if (searchPrincipleResponse.out->SOAPPrincipal.at(i)->description)
+			attributes->description = *searchPrincipleResponse.out->SOAPPrincipal.at(i)->description;
+		if (searchPrincipleResponse.out->SOAPPrincipal.at(i)->directoryId)
+			attributes->directoryId = *searchPrincipleResponse.out->SOAPPrincipal.at(i)->directoryId;
+		if (searchPrincipleResponse.out->SOAPPrincipal.at(i)->lastModified)
+			attributes->lastModified = *searchPrincipleResponse.out->SOAPPrincipal.at(i)->lastModified;
+		if (searchPrincipleResponse.out->SOAPPrincipal.at(i)->name)
+			attributes->name = *searchPrincipleResponse.out->SOAPPrincipal.at(i)->name;
+		for (int j = 0; j < searchPrincipleResponse.out->SOAPPrincipal.at(i)->attributes->SOAPAttribute.size(); j++) {
+			ns3__SOAPAttribute *attribs = searchPrincipleResponse.out->SOAPPrincipal.at(i)->attributes->SOAPAttribute.at(j);
+			for (int k = 0; k < attribs->values->string.size(); k++) {
+				attributes->attributes[*attribs->name].push_back(attribs->values->string.at(k));
+			}
+		}
+		this->cache->setPrincipleCache(attributes->name, attributes, false);
+		results->push_back(attributes);
+	}
+
+	if (success == false)
 		return this->processFault();
 	else
 		return CROWD_OK;
 }
+
+const CrowdCacheStatistics_t CrowdClient::getCacheStats() {
+	return this->cache->getStats();
+}
+

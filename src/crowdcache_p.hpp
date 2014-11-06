@@ -55,24 +55,7 @@ struct PrincipleGroups_t {
 };
 
 
-struct Statistics_t {
-		int PrincipleCacheHits;
-		int PrincipleCacheMisses;
-		int TokenMapHits;
-		int TokenMapMisses;
-		int IsGroupMemberHits;
-		int IsGroupMemberMisses;
-		int PrincipleGroupsHits;
-		int PrincipleGroupsMisses;
-		int AllGroupsHits;
-		int AllGroupsMisses;
-		int ApplicationGroupsHits;
-		int ApplicationGroupsMisses;
-		int GroupHits;
-		int GroupMisses;
-		int AllUsersHits;
-		int AllUsersMisses;
-};
+
 
 class CrowdCache {
 public:
@@ -81,6 +64,9 @@ public:
 
 		void setTimeout(int timeout);
 		int getTimeout();
+
+		const CrowdCacheStatistics_t getStats();
+
 
 		void checkAllCaches();
 		void invalidateGroupCaches();
@@ -127,7 +113,7 @@ private:
 		std::map<std::string, GroupCache_t *> GroupCache;
 		PrincipleGroups_t AllUsersCache;
 		int timeout;
-		Statistics_t stats;
+		CrowdCacheStatistics_t stats;
 
 };
 

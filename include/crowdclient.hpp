@@ -145,6 +145,31 @@ protected:
     CrowdClientReturnCodes code_;
 };
 
+
+struct CrowdCacheStatistics_t {
+		int PrincipleCacheHits;
+		int PrincipleCacheMisses;
+		int PrincipleSize;
+		int TokenMapHits;
+		int TokenMapMisses;
+		int TokenMapSize;
+		int IsGroupMemberHits;
+		int IsGroupMemberMisses;
+		int IsGroupMemberSize;
+		int PrincipleGroupsHits;
+		int PrincipleGroupsMisses;
+		int PrincipleGroupsSize;
+		int AllGroupsHits;
+		int AllGroupsMisses;
+		int ApplicationGroupsHits;
+		int ApplicationGroupsMisses;
+		int GroupHits;
+		int GroupMisses;
+		int GroupSize;
+		int AllUsersHits;
+		int AllUsersMisses;
+};
+
 class CrowdCache;
 
 
@@ -159,6 +184,7 @@ public:
 		CrowdClientReturnCodes getErrorCode();
 		std::string getErrorMsg();
 
+		const CrowdCacheStatistics_t getCacheStats();
 
 
 		CrowdClientReturnCodes authApplication();
@@ -211,6 +237,7 @@ private:
 		std::string password;
 		static CrowdClientReturnCodes errorcode;
 		static bool throwenabled;
+		int authattempts;
 		CrowdCache *cache;
 };
 
