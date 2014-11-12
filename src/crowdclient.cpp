@@ -1290,7 +1290,7 @@ CrowdClientReturnCodes CrowdClient::searchPrinciples(std::vector< searchParams *
 	while (true) {
 		int ret = this->service->searchPrincipals(this->url.c_str(), NULL, &searchPrinciple, &searchPrincipleResponse);
 		if (ret == SOAP_OK) {
-			ret = true;
+			success = true;
 			break;
 		} else if ((this->service->soap_fault()->detail->ns1__InvalidAuthorizationTokenException) && (attempts < this->authattempts)) {
 			attempts++;
