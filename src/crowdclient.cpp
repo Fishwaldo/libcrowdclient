@@ -1247,7 +1247,7 @@ CrowdClientReturnCodes CrowdClient::resetPrinciplePassword(std::string user, std
 	while (true) {
 		int ret = this->service->updatePrincipalCredential(this->url.c_str(), NULL, &principle, &principleResponse);
 		if (ret == SOAP_OK) {
-			ret = true;
+			success = true;
 			break;
 		} else if ((this->service->soap_fault()->detail->ns1__InvalidAuthorizationTokenException) && (attempts < this->authattempts)) {
 			attempts++;
