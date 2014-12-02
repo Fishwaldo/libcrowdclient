@@ -22,3 +22,5 @@ soapSecurityServerHttpBindingProxy.h: soapC.cpp
 SecurityServerHttpBinding.nsmap: soapC.cpp
 
 soapH.h: soapC.cpp
+
+soapStub.h: soapC.cpp
