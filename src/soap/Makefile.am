@@ -17,4 +17,6 @@ soapC.cpp: crowdsoap.h
 
 soapSecurityServerHttpBindingProxy.cpp: soapC.cpp	
 
+soapSecurityServerHttpBindingProxy.h: soapC.cpp
 
+SecurityServerHttpBinding.nsmap: soapC.cpp
