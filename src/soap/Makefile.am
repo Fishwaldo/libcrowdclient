@@ -13,7 +13,7 @@ BUILT_SOURCES = soapC.cpp soapSecurityServerHttpBindingProxy.cpp soapSecuritySer
 CLEANFILES = soapC.cpp soapSecurityServerHttpBindingProxy.cpp soapSecurityServerHttpBindingProxy.h soapH.h soapStub.h SecurityServerHttpBinding.nsmap
 
 soapC.cpp: crowdsoap.h
-	@PROG_SOAPCPP2@ -C -i -w -x $(top_srcdir)/src/soap/crowdsoap.h
+	@PROG_SOAPCPP2@ -I/usr/share/gsoap/import -C -i -w -x $(top_srcdir)/src/soap/crowdsoap.h
 
 soapSecurityServerHttpBindingProxy.cpp: soapC.cpp	
 
