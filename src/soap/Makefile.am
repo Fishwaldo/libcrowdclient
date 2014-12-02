@@ -14,6 +14,7 @@ CLEANFILES = soapC.cpp soapSecurityServerHttpBindingProxy.cpp soapSecurityServer
 
 soapC.cpp: crowdsoap.h
 	@PROG_SOAPCPP2@ -C -i -w -x $(top_srcdir)/src/soap/crowdsoap.h
-	
+
+soapSecurityServerHttpBindingProxy.cpp: soapC.cpp	
 
 
